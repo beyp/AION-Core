@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "description": "AION-Core App Registry — liste des apps disponibles",
+  "apps": {
+    "quickmind": {
+      "name": "QuickMind",
+      "description": "Gestionnaire de tâches personnel",
+      "type": "api",
+      "status": "active",
+      "connector": "aion_core/apps/quickmind/connector.py",
+      "url": "http://localhost:8765",
+      "health_endpoint": "/health",
+      "github": "beyp/QuickMind",
+      "docker_image": null,
+      "web_ui": "/app/quickmind",
+      "icon": "✅",
+      "version": "1.0"
+    },
+    "ado": {
+      "name": "Azure DevOps",
+      "description": "Gestion des work items Azure DevOps",
+      "type": "api_external",
+      "status": "active",
+      "connector": "aion_core/apps/ado/connector.py",
+      "url": "https://dev.azure.com",
+      "github": null,
+      "docker_image": null,
+      "web_ui": "/app/ado",
+      "icon": "🔵",
+      "version": "1.0"
+    },
+    "projectmind": {
+      "name": "ProjectMind",
+      "description": "Gestion de projets avec Gantt, capacity planning, weekly status",
+      "type": "api",
+      "status": "pending",
+      "connector": null,
+      "url": "http://localhost:8766",
+      "health_endpoint": "/api/projects",
+      "github": "beyp/ProjectMind",
+      "docker_image": null,
+      "web_ui": "/app/projectmind",
+      "icon": "📋",
+      "version": "0.1"
+    },
+    "system": {
+      "name": "System Monitor",
+      "description": "Surveillance CPU, RAM, disques, réseau",
+      "type": "local",
+      "status": "active",
+      "connector": "aion_core/apps/system/connector.py",
+      "url": null,
+      "github": null,
+      "docker_image": null,
+      "web_ui": "/app/system",
+      "icon": "🖥️",
+      "version": "1.0"
+    },
+    "timer": {
+      "name": "Timer",
+      "description": "Compte à rebours avec notification et bip",
+      "type": "local",
+      "status": "active",
+      "connector": "aion_core/apps/timer/connector.py",
+      "url": null,
+      "github": null,
+      "docker_image": null,
+      "web_ui": "/app/timer",
+      "icon": "⏰",
+      "version": "1.0"
+    }
+  },
+  "app_types": {
+    "api":           "Service REST (FastAPI/Flask) — local ou Docker",
+    "api_external":  "API externe (cloud, pas de Docker)",
+    "local":         "Module Python importé directement",
+    "docker":        "Container Docker géré par AION",
+    "github":        "App découverte depuis GitHub et intégrée automatiquement"
+  }
+}
