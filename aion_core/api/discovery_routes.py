@@ -186,4 +186,48 @@ def register_discovery_routes(app, aion_app):
         </script>
         </body></html>""")
 
+    # -- Autostart routes ─────────────────────────────────────────────────────
+
+    @app.get("/api/autostart/status")
+    async def autostart_status():
+        """Statut de toutes les apps (running, managed, config)."""
+        return {"apps": aion_app.launcher.status()}
+
+    @app.post("/api/autostart/{app_id}/start")
+    async def autostart_start(app_id: str):
+        """Demarre une app manuellement."""
+        return aion_app.launcher.start_app(app_id)
+
+    @app.post("/api/autostart/{app_id}/stop")
+    async def autostart_stop(app_id: str):
+        """Arrete une app."""
+        return aion_app.launcher.stop_app(app_id)
+
+    @app.post("/api/autostart/configure")
+    async def autostart_configure(request):
+        """Configure l autostart d une app via API ou IA."""
+        body    = await request.json()
+        app_id  = body.get("app_id", "")
+        enabled = body.get("enabled", True)
+        mode    = body.get("mode", "fastapi")
+        path    = body.get("path", "")
+        port    = int(body.get("port", 0))
+        order   = int(body.get("order", 99))
+
+        if not app_id:
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"error": "app_id requis"}, status_code=400)
+
+        result = aion_app.launcher.configure_autostart(
+            app_id=app_id, enabled=enabled,
+            mode=mode, path=path, port=port, order=order
+        )
+
+        # Si on active, demarrer immediatement
+        if enabled and result.get("success"):
+            start_result = aion_app.launcher.start_app(app_id)
+            result["start_result"] = start_result
+
+        return result
+
     logger.info("Discovery routes registered")
