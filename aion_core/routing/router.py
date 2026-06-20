@@ -51,19 +51,75 @@ class AppRouter:
         self._load_apps()
 
     def _load_apps(self) -> None:
-        """Charge les connecteurs d apps disponibles."""
-        from aion_core.apps.quickmind.connector  import QuickMindConnector
-        from aion_core.apps.ado.connector         import ADOConnector
-        from aion_core.apps.system.connector      import SystemConnector
-        from aion_core.apps.timer.connector       import TimerConnector
+        """
+        Charge les connecteurs d apps disponibles.
+        Charge d abord les apps hardcodées, puis les apps du registre apps.json.
+        """
+        from aion_core.apps.quickmind.connector import QuickMindConnector
+        from aion_core.apps.ado.connector        import ADOConnector
+        from aion_core.apps.system.connector     import SystemConnector
+        from aion_core.apps.timer.connector      import TimerConnector
 
+        # Apps de base — toujours disponibles
         self._apps = {
             "quickmind": QuickMindConnector(self.memory),
             "ado":       ADOConnector(self.memory),
             "system":    SystemConnector(),
             "timer":     TimerConnector(self.memory),
         }
+
+        # Charger les apps découvertes dynamiquement depuis apps.json
+        self._load_discovered_apps()
+
         logger.info("Apps chargées: %s", list(self._apps.keys()))
+
+    def _load_discovered_apps(self) -> None:
+        """Charge les apps enregistrées dans apps.json."""
+        import importlib.util, json
+        from pathlib import Path
+
+        registry_file = Path("apps.json")
+        if not registry_file.exists():
+            return
+
+        try:
+            with open(registry_file, encoding="utf-8") as f:
+                registry = json.load(f)
+        except Exception:
+            return
+
+        for app_id, app_info in registry.get("apps", {}).items():
+            # Ignorer les apps déjà chargées
+            if app_id in self._apps:
+                continue
+            # Ignorer les apps non installées
+            if app_info.get("status") not in ("active", "installed"):
+                continue
+            # Charger le connecteur
+            connector_path = app_info.get("connector")
+            if not connector_path:
+                continue
+            try:
+                spec   = importlib.util.spec_from_file_location(f"app_{app_id}", connector_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                # Trouver la classe Connector
+                connector_class = None
+                for name in dir(module):
+                    if name.endswith("Connector") and not name.startswith("_"):
+                        connector_class = getattr(module, name)
+                        break
+                if connector_class:
+                    self._apps[app_id] = connector_class(self.memory)
+                    logger.info("App dynamique chargée: %s", app_id)
+            except Exception as e:
+                logger.warning("Impossible de charger %s: %s", app_id, e)
+
+    def reload_apps(self) -> None:
+        """Recharge toutes les apps (après discover)."""
+        self._apps = {}
+        self._load_apps()
+        logger.info("Apps rechargées: %s", list(self._apps.keys()))
 
     def route(self, text: str, image_b64: str | None = None,
               image_mime: str = "image/jpeg") -> dict:
