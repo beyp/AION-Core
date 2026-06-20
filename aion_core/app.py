@@ -81,6 +81,18 @@ class AionApp:
 
         app = create_app(self)
 
+        # Lancer les apps autostart en arriere-plan
+        import threading
+        def _autostart():
+            logger.info("Demarrage des apps autostart...")
+            results = self.launcher.start_all()
+            for app_id, result in results.items():
+                status = "OK" if result.get("success") else "ECHEC"
+                logger.info("  Autostart %s: %s -- %s",
+                            app_id, status, result.get("message", ""))
+        t = threading.Thread(target=_autostart, daemon=True, name="autostart")
+        t.start()
+
         uvicorn.run(
             app,
             host=host,
