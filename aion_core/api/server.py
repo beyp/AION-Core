@@ -296,6 +296,13 @@ def create_app(aion_app) -> FastAPI:
         <a href="/" style="color:#1e90ff;">← Dashboard</a></p></body></html>"""
         return HTMLResponse(html_content)
 
+    # ── QuickMind Phase 2 Routes ────────────────────────────────────────────
+    try:
+        from aion_core.api.quickmind_routes import register_routes as _reg_qm
+        _reg_qm(app, aion_app)
+    except Exception as _e:
+        logger.warning("QuickMind routes not loaded: %s", _e)
+
     return app
 
 
