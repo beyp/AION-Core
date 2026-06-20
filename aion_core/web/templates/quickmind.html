@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}QuickMind — AION-Core{% endblock %}
+
+{% block extra_style %}
+<style>
+/* Filtre bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.filter-btn{padding:4px 12px;border-radius:16px;border:1px solid var(--border);
+  background:var(--card);color:var(--dim);cursor:pointer;font-size:0.78rem;
+  text-decoration:none;transition:all 0.15s;}
+.filter-btn:hover,.filter-btn.active{background:var(--accent);color:white;border-color:var(--accent);}
+.filter-btn.urgent{border-color:#FF4444;color:#FF4444;}
+.filter-btn.urgent.active{background:#FF4444;color:white;}
+.filter-btn.high{border-color:#FF8C00;color:#FF8C00;}
+.filter-btn.high.active{background:#FF8C00;color:white;}
+/* Layout 2 colonnes */
+.qm-layout{display:grid;grid-template-columns:1fr 380px;gap:16px;height:calc(100vh - 160px);}
+.qm-list-col{overflow-y:auto;}
+.qm-detail-col{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:16px;overflow-y:auto;}
+/* Task rows */
+.task-row{display:flex;align-items:center;gap:10px;background:var(--card);
+  border:1px solid var(--border);border-radius:8px;padding:10px 14px;
+  margin-bottom:6px;transition:border-color 0.15s;}
+.task-row:hover{border-color:var(--accent);}
+.task-row.done{opacity:0.55;}
+.task-prio{font-size:1.1rem;flex-shrink:0;width:22px;}
+.task-body{flex:1;cursor:pointer;min-width:0;}
+.task-title{font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.done-title{text-decoration:line-through;color:var(--dim);}
+.task-cat{display:inline-block;background:var(--accent)22;color:var(--accent);
+  padding:1px 7px;border-radius:8px;font-size:0.7rem;margin-left:8px;}
+.task-status{font-size:0.95rem;flex-shrink:0;}
+.task-actions{display:flex;gap:4px;flex-shrink:0;}
+.task-actions button{background:none;border:none;cursor:pointer;font-size:0.9rem;
+  padding:3px 5px;border-radius:4px;opacity:0.6;transition:opacity 0.15s;}
+.task-actions button:hover{opacity:1;background:var(--border);}
+/* Formulaire ajout */
+.add-form{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:14px;margin-bottom:14px;}
+.add-form .form-row{display:flex;gap:8px;flex-wrap:wrap;}
+.add-form input,.add-form select{background:#12141f;border:1px solid var(--border);
+  color:var(--text);padding:7px 10px;border-radius:6px;font-size:0.85rem;}
+.add-form input:focus,.add-form select:focus{outline:none;border-color:var(--accent);}
+.add-form input[name="title"]{flex:1;min-width:200px;}
+/* Sous-tâches */
+.subtask-row{display:flex;align-items:center;gap:8px;padding:6px 0;
+  border-bottom:1px solid var(--border);font-size:0.85rem;}
+.subtask-row input[type="checkbox"]{cursor:pointer;accent-color:var(--accent);}
+/* Stats bar */
+.qm-stats{display:flex;gap:12px;margin-bottom:12px;font-size:0.78rem;color:var(--dim);}
+.qm-stats span{background:var(--card);border:1px solid var(--border);
+  padding:3px 10px;border-radius:12px;}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Header QuickMind -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+  <h2 style="font-size:1.1rem;">✅ QuickMind</h2>
+  {% if qm_online %}
+  <span class="badge badge-green">● En ligne</span>
+  {% else %}
+  <span class="badge badge-red">● Hors ligne</span>
+  {% endif %}
+  <span style="color:var(--dim);font-size:0.78rem;">{{ total }} tâche(s)</span>
+</div>
+
+{% if not qm_online %}
+<div style="background:color-mix(in srgb,var(--red) 10%,transparent);border:1px solid var(--red);
+  border-radius:8px;padding:14px;margin-bottom:16px;color:var(--red);">
+  ⚠️ QuickMind API hors ligne (http://localhost:8765)<br>
+  <small style="color:var(--dim);">Lance QuickMind ou démarre le conteneur Docker.</small>
+</div>
+{% else %}
+
+<!-- Formulaire ajout rapide -->
+<div class="add-form">
+  <form hx-post="/qm/task/add" hx-target="#task-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
+    <div class="form-row">
+      <input name="title" type="text" placeholder="Nouvelle tâche..." required autofocus style="flex:2;">
+      <select name="priority" style="width:110px;">
+        <option value="normal">🔵 Normal</option>
+        <option value="urgent">🔴 Urgent</option>
+        <option value="high">🟠 High</option>
+        <option value="low">⚪ Low</option>
+      </select>
+      <select name="category" style="width:130px;">
+        <option value="">— Catégorie —</option>
+        {% for cat in categories %}
+        <option value="{{ cat.name }}">{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" style="background:var(--accent);color:white;border:none;
+        padding:7px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem;">+ Ajouter</button>
+    </div>
+  </form>
+</div>
+
+<!-- Filtres -->
+<div class="filter-bar">
+  <span style="color:var(--dim);font-size:0.78rem;">Filtrer :</span>
+  <a href="/app/quickmind" class="filter-btn {% if not priority_filter and not status_filter %}active{% endif %}">Tout</a>
+  <a href="?status=todo"        class="filter-btn {% if status_filter=='todo' %}active{% endif %}">📋 À faire</a>
+  <a href="?status=in_progress" class="filter-btn {% if status_filter=='in_progress' %}active{% endif %}">⚙️ En cours</a>
+  <a href="?status=done"        class="filter-btn {% if status_filter=='done' %}active{% endif %}">✅ Terminé</a>
+  <span style="color:var(--border);">|</span>
+  <a href="?priority=urgent" class="filter-btn urgent {% if priority_filter=='urgent' %}active{% endif %}">🔴 Urgent</a>
+  <a href="?priority=high"   class="filter-btn high {% if priority_filter=='high' %}active{% endif %}">🟠 High</a>
+</div>
+
+<!-- Layout 2 colonnes : liste + détail -->
+<div class="qm-layout">
+
+  <!-- Colonne liste -->
+  <div class="qm-list-col">
+    <div id="task-list">
+      {% for t in tasks %}
+      {% set pm = {"urgent":{"color":"#FF4444","icon":"🔴"},"high":{"color":"#FF8C00","icon":"🟠"},"normal":{"color":"#1E90FF","icon":"🔵"},"low":{"color":"#888","icon":"⚪"}} %}
+      {% set sm = {"todo":{"color":"#888","icon":"📋"},"in_progress":{"color":"#FF8C00","icon":"⚙️"},"done":{"color":"#32CD32","icon":"✅"}} %}
+      {% set p = pm.get(t.priority, pm.normal) %}
+      {% set s = sm.get(t.status, sm.todo) %}
+      <div class="task-row {% if t.status == 'done' %}done{% endif %}" id="task-{{ t.id }}">
+        <span class="task-prio" style="color:{{ p.color }};">{{ p.icon }}</span>
+        <div class="task-body"
+          hx-get="/qm/task/{{ t.id }}/detail"
+          hx-target="#task-detail"
+          hx-swap="innerHTML">
+          <span class="task-title {% if t.status == 'done' %}done-title{% endif %}">
+            {{ t.title }}
+          </span>
+          {% if t.category %}
+          <span class="task-cat">{{ t.category }}</span>
+          {% endif %}
+        </div>
+        <span class="task-status">{{ s.icon }}</span>
+        <div class="task-actions">
+          <button hx-post="/qm/task/{{ t.id }}/done"
+            hx-target="#task-list" hx-swap="innerHTML"
+            title="Marquer Done">✅</button>
+          <button hx-delete="/qm/task/{{ t.id }}"
+            hx-target="#task-list" hx-swap="innerHTML"
+            hx-confirm="Supprimer cette tâche ?"
+            title="Supprimer">🗑️</button>
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:40px;color:var(--dim);">
+        <p style="font-size:1rem;margin-bottom:12px;">Aucune tâche.</p>
+        <p style="font-size:0.82rem;">Ajoute ta première tâche ci-dessus !</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Colonne détail -->
+  <div class="qm-detail-col">
+    <div id="task-detail"
+      style="color:var(--dim);font-size:0.85rem;text-align:center;padding:40px 0;">
+      👆 Clique sur une tâche pour voir les détails et sous-tâches
+    </div>
+  </div>
+
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_script %}
+<script>
+// Raccourci Entrée pour ajouter une tâche
+document.addEventListener("DOMContentLoaded", function() {
+  var titleInput = document.querySelector("input[name='title']");
+  if (titleInput) titleInput.focus();
+});
+</script>
+{% endblock %}
