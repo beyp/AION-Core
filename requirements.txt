@@ -1,0 +1,14 @@
+# AION-Core dependencies
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+jinja2>=3.1.0
+python-multipart>=0.0.9
+pydantic>=2.7.0
+requests>=2.32.0
+python-dotenv>=1.0.0
+pystray>=0.19.5
+Pillow>=10.0.0
+plyer>=2.1.0
+APScheduler>=3.10.0
+prompt_toolkit>=3.0.0
+PyYAML>=6.0.1
