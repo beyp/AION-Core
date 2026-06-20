@@ -197,6 +197,53 @@ class AppRouter:
                 pass
         return "\n".join(results) if results else f"Aucun résultat pour '{keyword}'"
 
+    def _handle_launcher(self, action: str, params: dict) -> str:
+        """Gere les actions de demarrage/arret d apps."""
+        try:
+            from aion_core.discovery.launcher import AppLauncher
+            launcher = AppLauncher()
+
+            if action == "start":
+                app_id = params.get("app_id", "")
+                if not app_id:
+                    return "Quel app demarrer ? (ex: demarre quickmind)"
+                result = launcher.start_app(app_id)
+                return result.get("message", "Demarre")
+
+            if action == "stop":
+                app_id = params.get("app_id", "")
+                result = launcher.stop_app(app_id)
+                return result.get("message", "Arrete")
+
+            if action == "configure":
+                result = launcher.configure_autostart(
+                    app_id  = params.get("app_id", ""),
+                    enabled = params.get("enabled", True),
+                    mode    = params.get("mode", "fastapi"),
+                    path    = params.get("path", ""),
+                    port    = int(params.get("port", 0)),
+                    order   = int(params.get("order", 99)),
+                )
+                if params.get("enabled", True) and result.get("success"):
+                    start = launcher.start_app(params.get("app_id", ""))
+                    return result.get("message", "") + " -- " + start.get("message", "")
+                return result.get("message", "Configure")
+
+            if action == "status":
+                apps  = launcher.status()
+                lines = ["Statut des apps :"]
+                for a in apps:
+                    icon = "OK" if a.get("running") else "OFF"
+                    name = a.get("name", a.get("app_id", "?"))
+                    mode = a.get("mode", "")
+                    lines.append("  [" + icon + "] " + name + " (" + mode + ")")
+                return chr(10).join(lines)
+
+        except Exception as e:
+            return "Erreur launcher: " + str(e)
+
+        return "Action launcher inconnue: " + action
+
     def _handle_memory(self, action: str, params: dict) -> str:
         """Gère les actions mémoire."""
         if action == "remember":
