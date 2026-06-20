@@ -303,6 +303,22 @@ def create_app(aion_app) -> FastAPI:
     except Exception as _e:
         logger.warning("QuickMind routes not loaded: %s", _e)
 
+    # ── App Discovery Phase 3 Routes ─────────────────────────────────────────
+    try:
+        from aion_core.api.discovery_routes import register_discovery_routes
+        register_discovery_routes(app, aion_app)
+    except Exception as _e:
+        logger.warning("Discovery routes not loaded: %s", _e)
+
+    # ── Sidebar navigation link pour /apps ────────────────────────────────────
+    @app.get("/sidebar/apps-count")
+    async def sidebar_apps_count():
+        try:
+            apps = aion_app.discovery.list_apps()
+            return {"count": len(apps)}
+        except Exception:
+            return {"count": 0}
+
     return app
 
 
