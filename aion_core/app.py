@@ -56,7 +56,11 @@ class AionApp:
         self.brain     = AionBrain()
         self.app_router = AppRouter(self.brain, self.memory)
 
-        logger.info("Composants initialisés")
+        # App Discovery — Phase 3
+        from aion_core.discovery.app_discovery import AppDiscovery
+        self.discovery = AppDiscovery(self.brain, self.memory)
+        logger.info("Composants initialisés — Apps: %s",
+                    [a["id"] for a in self.discovery.list_apps()])
 
     def run(self) -> None:
         """Lance AION-Core."""
