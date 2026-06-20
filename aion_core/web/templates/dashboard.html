@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — AION-Core{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-box">
+    <div class="stat-num">{{ apps_count }}</div>
+    <div class="stat-lbl">Apps connectées</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ memory_count }}</div>
+    <div class="stat-lbl">Mémoires</div>
+  </div>
+  <div class="stat-box" style="background:color-mix(in srgb,var(--green) 8%,transparent);border-color:color-mix(in srgb,var(--green) 25%,transparent);">
+    <div class="stat-num" style="color:var(--green);">{{ "ON" if ai_available else "OFF" }}</div>
+    <div class="stat-lbl">Groq IA</div>
+  </div>
+</div>
+
+<!-- IA Chat rapide -->
+<div class="card">
+  <div class="card-title">🤖 Assistant IA — Commande rapide</div>
+  <div class="chat-hist" id="dash-hist" style="min-height:120px;max-height:200px;">
+    <div style="color:var(--dim);">Prêt. Tape une commande ou pose une question...</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="dash-input" type="text"
+      placeholder="Ex: mes tâches ADO en cours | timer 25 minutes | CPU et RAM"
+      autofocus autocomplete="off"
+      onkeydown="if(event.key==='Enter') dashSend()">
+    <button class="send-btn" onclick="dashSend()">Envoyer</button>
+  </div>
+</div>
+
+<!-- Apps Status -->
+<div class="card">
+  <div class="card-title">📡 Statut des apps</div>
+  <div id="apps-status"
+    hx-get="/api/apps/status"
+    hx-trigger="load, every 30s"
+    hx-swap="innerHTML">
+    <div style="color:var(--dim);">Chargement...</div>
+  </div>
+</div>
+
+<!-- Activité récente -->
+<div class="card">
+  <div class="card-title">📋 Mémoire récente</div>
+  {% if recent_memory %}
+  {% for key, item in recent_memory.items() %}
+  <div style="display:flex;justify-content:space-between;padding:6px 0;
+    border-bottom:1px solid var(--border);font-size:0.83rem;">
+    <span style="color:var(--accent);">{{ key }}</span>
+    <span style="color:var(--dim);">{{ item.value[:40] }}</span>
+    <span class="badge badge-blue" style="font-size:0.68rem;">{{ item.type }}</span>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p style="color:var(--dim);font-size:0.83rem;">Aucune mémoire enregistrée.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+function dashSend() {
+  var input = document.getElementById("dash-input");
+  var hist  = document.getElementById("dash-hist");
+  var text  = input.value.trim();
+  if (!text) return;
+
+  hist.insertAdjacentHTML("beforeend",
+    "<div class='chat-user'>Vous : " + text + "</div>");
+  hist.insertAdjacentHTML("beforeend",
+    "<div id='dash-load' style='color:var(--dim);'>⏳ AION réfléchit...</div>");
+  hist.scrollTop = hist.scrollHeight;
+  input.value = "";
+
+  fetch("/api/route", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: text })
+  })
+  .then(r => r.json())
+  .then(data => {
+    var ld = document.getElementById("dash-load");
+    if (ld) ld.remove();
+    var resp = data.response || data.result || "Aucune réponse.";
+    hist.insertAdjacentHTML("beforeend",
+      "<div class='chat-ai'>🤖 " + resp + "</div>");
+    hist.scrollTop = hist.scrollHeight;
+  })
+  .catch(err => {
+    var ld = document.getElementById("dash-load");
+    if (ld) ld.remove();
+    hist.insertAdjacentHTML("beforeend",
+      "<div class='chat-error'>Erreur: " + err + "</div>");
+  });
+}
+</script>
+{% endblock %}
