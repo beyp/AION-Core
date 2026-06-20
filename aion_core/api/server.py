@@ -170,6 +170,132 @@ def create_app(aion_app) -> FastAPI:
     async def list_apps():
         return {"apps": aion_app.app_router.available_apps}
 
+    # ── Web Routes ─────────────────────────────────────────────────────────
+
+    @app.get("/", response_class=HTMLResponse)
+    async def web_dashboard(request: Request):
+        if templates is None:
+            return HTMLResponse("<h1>AION-Core API</h1><p><a href='/docs'>API Docs</a></p>")
+        mem   = aion_app.memory.list_memory()
+        recent = dict(list(mem.items())[-5:]) if mem else {}
+        return templates.TemplateResponse(request=request, name="dashboard.html", context={
+            "version":      aion_app.VERSION,
+            "active":       "dashboard",
+            "ai_available": aion_app.brain.is_available(),
+            "apps_count":   len(aion_app.app_router.available_apps),
+            "memory_count": len(mem),
+            "recent_memory": recent,
+        })
+
+    @app.get("/chat", response_class=HTMLResponse)
+    async def web_chat(request: Request):
+        if templates is None:
+            return HTMLResponse("<p>Templates not found</p>")
+        return templates.TemplateResponse(request=request, name="chat.html", context={
+            "version":      aion_app.VERSION,
+            "active":       "chat",
+            "ai_available": aion_app.brain.is_available(),
+            "groq_model":   aion_app.brain.model,
+        })
+
+    @app.get("/memory", response_class=HTMLResponse)
+    async def web_memory(request: Request):
+        mem = aion_app.memory.list_memory()
+        rows = "".join(
+            f"<tr><td style='color:var(--accent);padding:8px 12px;'>{k}</td>"
+            f"<td style='padding:8px 12px;color:var(--dim);'>{v.get('type','')}</td>"
+            f"<td style='padding:8px 12px;'>{v.get('value','')[:60]}</td></tr>"
+            for k, v in mem.items()
+        )
+        html_content = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <style>body{{font-family:Segoe UI;background:#0f1117;color:#e0e0e0;padding:20px;}}
+        table{{width:100%;border-collapse:collapse;background:#1a1d27;border-radius:8px;overflow:hidden;}}
+        th{{background:#041E42;color:#fff;padding:10px 12px;text-align:left;}}
+        tr:hover{{background:#2a2d3e;}}</style></head>
+        <body><h2 style="color:#1e90ff;margin-bottom:16px;">🧠 AION Memory ({len(mem)} items)</h2>
+        <table><thead><tr><th>Clé</th><th>Type</th><th>Valeur</th></tr></thead>
+        <tbody>{rows}</tbody></table>
+        <p style="color:#888;margin-top:12px;font-size:0.8rem;">
+        <a href="/" style="color:#1e90ff;">← Dashboard</a></p></body></html>"""
+        return HTMLResponse(html_content)
+
+    @app.get("/app/{app_name}", response_class=HTMLResponse)
+    async def web_app(app_name: str, request: Request):
+        """Vue dédiée par app — à enrichir dans les phases suivantes."""
+        connector = aion_app.app_router._apps.get(app_name)
+        if not connector:
+            return HTMLResponse(f"<p>App '{app_name}' non trouvée.</p>", status_code=404)
+        result = connector.execute("list_tasks" if app_name=="quickmind" else
+                                   "search" if app_name=="ado" else
+                                   "cpu_ram" if app_name=="system" else
+                                   "status", {})
+        html_content = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <style>body{{font-family:Segoe UI;background:#0f1117;color:#e0e0e0;padding:20px;}}
+        pre{{background:#1a1d27;padding:16px;border-radius:8px;white-space:pre-wrap;
+        color:#4caf50;font-size:0.85rem;}}</style></head>
+        <body><h2 style="color:#1e90ff;margin-bottom:16px;">
+        {app_name.upper()}</h2>
+        <pre>{result}</pre>
+        <p style="color:#888;margin-top:12px;font-size:0.8rem;">
+        <a href="/" style="color:#1e90ff;">← Dashboard</a></p></body></html>"""
+        return HTMLResponse(html_content)
+
+    @app.get("/api/apps/status")
+    async def apps_status():
+        """Statut de toutes les apps — appelé par htmx."""
+        status = {}
+        for app_name, connector in aion_app.app_router._apps.items():
+            try:
+                if hasattr(connector, "health"):
+                    r = connector.health()
+                    status[app_name] = "online" if "actif" in r.lower() or "active" in r.lower() else "offline"
+                else:
+                    status[app_name] = "unknown"
+            except Exception:
+                status[app_name] = "offline"
+        html_parts = []
+        icons = {"quickmind":"✅","ado":"🔵","system":"🖥️","timer":"⏰"}
+        colors = {"online":"var(--green)","offline":"var(--red)","unknown":"var(--dim)"}
+        for app_name, state in status.items():
+            color = colors.get(state, "var(--dim)")
+            icon  = icons.get(app_name, "📦")
+            html_parts.append(
+                f'<div style="display:flex;align-items:center;gap:10px;padding:7px 0;'
+                f'border-bottom:1px solid var(--border);font-size:0.85rem;">'
+                f'<span>{icon}</span>'
+                f'<span style="flex:1;">{app_name}</span>'
+                f'<span style="color:{color};font-size:0.78rem;font-weight:600;">{state}</span>'
+                f'</div>'
+            )
+        return HTMLResponse("\n".join(html_parts))
+
+    @app.get("/settings", response_class=HTMLResponse)
+    async def web_settings(request: Request):
+        model = aion_app.brain.model
+        models = aion_app.brain.list_models() if aion_app.brain.is_available() else []
+        html_content = f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+        <style>body{{font-family:Segoe UI;background:#0f1117;color:#e0e0e0;padding:20px;}}
+        .card{{background:#1a1d27;border-radius:8px;padding:16px;margin-bottom:14px;border:1px solid #2a2d3e;}}
+        h3{{color:#1e90ff;margin-bottom:10px;}}
+        .row{{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2a2d3e;font-size:0.85rem;}}
+        .dim{{color:#888;}}</style></head>
+        <body>
+        <h2 style="color:#1e90ff;margin-bottom:16px;">⚙️ AION-Core Settings</h2>
+        <div class="card"><h3>🤖 IA</h3>
+        <div class="row"><span>Modèle actif</span><span style="color:#4caf50;">{model}</span></div>
+        <div class="row"><span>Groq disponible</span>
+        <span style="color:{'#4caf50' if aion_app.brain.is_available() else '#f44336'};">
+        {'✅ Oui' if aion_app.brain.is_available() else '❌ Non'}</span></div>
+        <div class="row"><span>Modèles disponibles</span>
+        <span class="dim">{', '.join(models[:3]) if models else 'N/A'}</span></div>
+        </div>
+        <div class="card"><h3>📊 Apps</h3>
+        {''.join(f'<div class="row"><span>{a}</span><span class="dim">✅ connecté</span></div>' for a in aion_app.app_router.available_apps)}
+        </div>
+        <p style="color:#888;margin-top:12px;font-size:0.8rem;">
+        <a href="/" style="color:#1e90ff;">← Dashboard</a></p></body></html>"""
+        return HTMLResponse(html_content)
+
     return app
 
 
