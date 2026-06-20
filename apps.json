@@ -18,13 +18,26 @@
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
-        "path": "C:\\code\\python\\QuickMind",
-        "command": ["python", "run_api.py"],
+        "path": "C:\\AION_APPS\\repos\\QuickMind",
+        "command": [
+          "python",
+          "run_api.py"
+        ],
         "port": 8765,
         "startup_order": 1,
         "health_check": true,
         "health_timeout_seconds": 15,
         "env": {}
+      },
+      "store": {
+        "install_path": "C:\\AION_APPS\\repos\\QuickMind",
+        "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
+        "appdata_files": [
+          "memory.json"
+        ],
+        "github": "beyp/QuickMind",
+        "installed_at": "",
+        "last_update": ""
       }
     },
     "ado": {
@@ -59,12 +72,29 @@
       "autostart": {
         "enabled": false,
         "mode": "fastapi",
-        "path": "C:\\code\\python\\ProjectMind",
-        "command": ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8766"],
+        "path": "C:\\AION_APPS\\repos\\ProjectMind",
+        "command": [
+          "uvicorn",
+          "main:app",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8766"
+        ],
         "port": 8766,
         "startup_order": 2,
         "health_check": true,
         "health_timeout_seconds": 20
+      },
+      "store": {
+        "install_path": "C:\\AION_APPS\\repos\\ProjectMind",
+        "appdata_path": "C:\\AION_APPS\\appdata\\projectmind",
+        "appdata_files": [
+          "projectmind.db"
+        ],
+        "github": "beyp/ProjectMind",
+        "installed_at": "",
+        "last_update": ""
       }
     },
     "system": {
@@ -76,7 +106,9 @@
       "url": null,
       "icon": "monitor",
       "version": "1.0",
-      "autostart": {"enabled": false}
+      "autostart": {
+        "enabled": false
+      }
     },
     "timer": {
       "name": "Timer",
@@ -87,14 +119,16 @@
       "url": null,
       "icon": "clock",
       "version": "1.0",
-      "autostart": {"enabled": false}
+      "autostart": {
+        "enabled": false
+      }
     }
   },
   "app_types": {
-    "fastapi":       "Service FastAPI/uvicorn lance par AION au demarrage",
-    "docker":        "Container Docker lance par AION au demarrage",
-    "api_external":  "API externe (cloud), pas de demarrage local",
-    "local":         "Module Python integre directement",
-    "desktop":       "Application desktop (Tkinter etc.)"
+    "fastapi": "Service FastAPI/uvicorn lance par AION au demarrage",
+    "docker": "Container Docker lance par AION au demarrage",
+    "api_external": "API externe (cloud), pas de demarrage local",
+    "local": "Module Python integre directement",
+    "desktop": "Application desktop (Tkinter etc.)"
   }
 }
