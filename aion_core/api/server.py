@@ -41,7 +41,7 @@ def create_app(aion_app) -> FastAPI:
 
     # ── Status ──────────────────────────────────────────────────────────────
 
-    @app.get("/")
+    @app.get("/api/status")
     async def root():
         return {
             "name":    "AION-Core",
