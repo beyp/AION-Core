@@ -83,13 +83,18 @@ class AionApp:
 
         # Lancer les apps autostart en arriere-plan
         import threading
+
         def _autostart():
-            logger.info("Demarrage des apps autostart...")
-            results = self.launcher.start_all()
-            for app_id, result in results.items():
-                status = "OK" if result.get("success") else "ECHEC"
-                logger.info("  Autostart %s: %s -- %s",
-                            app_id, status, result.get("message", ""))
+            try:
+                logger.info("Demarrage des apps autostart...")
+                results = self.launcher.start_all()
+                for app_id, res in results.items():
+                    status = "OK" if res.get("success") else "ECHEC"
+                    logger.info("  Autostart %s: %s -- %s",
+                                app_id, status, res.get("message", ""))
+            except Exception as exc:
+                logger.error("Erreur autostart (non bloquante): %s", exc)
+
         t = threading.Thread(target=_autostart, daemon=True, name="autostart")
         t.start()
 
