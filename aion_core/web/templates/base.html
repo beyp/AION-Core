@@ -43,6 +43,11 @@ header .spacer{flex:1;}
 .nav-item.active{background:color-mix(in srgb,var(--accent) 12%,transparent);
   border-left-color:var(--accent);color:var(--accent);font-weight:600;}
 .nav-icon{width:20px;text-align:center;font-size:1rem;}
+/* Badge statut app dans sidebar */
+.nav-dot{width:7px;height:7px;border-radius:50%;margin-left:auto;flex-shrink:0;}
+.nav-dot.online{background:var(--green);}
+.nav-dot.offline{background:var(--red);}
+.nav-dot.unknown{background:var(--dim);}
 /* Main */
 .main{flex:1;overflow-y:auto;padding:20px;}
 /* Cards */
@@ -82,6 +87,11 @@ header .spacer{flex:1;}
 /* Scrollbar */
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+/* Skeleton loader sidebar */
+.sb-skeleton{height:36px;margin:3px 12px;border-radius:6px;
+  background:linear-gradient(90deg,var(--border) 25%,var(--card) 50%,var(--border) 75%);
+  background-size:200% 100%;animation:shimmer 1.2s infinite;}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
 </style>
 {% block extra_style %}{% endblock %}
 </head>
@@ -105,8 +115,10 @@ header .spacer{flex:1;}
 
 <div class="layout">
 
-  <!-- Sidebar -->
-  <nav class="sidebar">
+  <!-- Sidebar dynamique -->
+  <nav class="sidebar" id="sidebar">
+
+    <!-- Section fixe : Navigation principale -->
     <div class="sb-section">Navigation</div>
     <a href="/" class="nav-item {% if active=='dashboard' %}active{% endif %}">
       <span class="nav-icon">📊</span> Dashboard
@@ -115,30 +127,33 @@ header .spacer{flex:1;}
       <span class="nav-icon">🤖</span> IA Chat
     </a>
 
+    <!-- Section Apps — générée dynamiquement -->
     <div class="sb-section">Apps</div>
-    <a href="/app/quickmind" class="nav-item {% if active=='quickmind' %}active{% endif %}">
-      <span class="nav-icon">✅</span> QuickMind
-    </a>
-    <a href="/app/ado" class="nav-item {% if active=='ado' %}active{% endif %}">
-      <span class="nav-icon">🔵</span> Azure DevOps
-    </a>
-    <a href="/app/system" class="nav-item {% if active=='system' %}active{% endif %}">
-      <span class="nav-icon">🖥️</span> System
-    </a>
-    <a href="/app/timer" class="nav-item {% if active=='timer' %}active{% endif %}">
-      <span class="nav-icon">⏰</span> Timer
-    </a>
+    <div id="sidebar-apps"
+         hx-get="/api/sidebar/apps"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <!-- Skeletons pendant le chargement -->
+      <div class="sb-skeleton"></div>
+      <div class="sb-skeleton"></div>
+      <div class="sb-skeleton"></div>
+    </div>
 
+    <!-- Section AION — toujours visible -->
     <div class="sb-section">AION</div>
     <a href="/memory" class="nav-item {% if active=='memory' %}active{% endif %}">
       <span class="nav-icon">🧠</span> Memory
     </a>
+    <a href="/store" class="nav-item {% if active=='store' %}active{% endif %}">
+      <span class="nav-icon">📦</span> App Store
+    </a>
     <a href="/apps" class="nav-item {% if active=='apps' %}active{% endif %}">
-      <span class="nav-icon">📦</span> App Registry
+      <span class="nav-icon">🗂</span> App Registry
     </a>
     <a href="/settings" class="nav-item {% if active=='settings' %}active{% endif %}">
       <span class="nav-icon">⚙️</span> Settings
     </a>
+
   </nav>
 
   <!-- Contenu principal -->
@@ -149,6 +164,7 @@ header .spacer{flex:1;}
 </div>
 
 <script>
+// ── Thème ────────────────────────────────────────────────────────────────────
 function toggleTheme() {
   var html = document.documentElement;
   html.setAttribute("data-theme",
@@ -157,6 +173,24 @@ function toggleTheme() {
 }
 var t = localStorage.getItem("theme");
 if (t) document.documentElement.setAttribute("data-theme", t);
+
+// ── Active link helper (utilisé par le HTML injecté) ─────────────────────────
+// Après chaque swap htmx, marquer l'item actif selon l'URL courante
+document.addEventListener("htmx:afterSwap", function(e) {
+  if (e.detail.target && e.detail.target.id === "sidebar-apps") {
+    highlightActive();
+  }
+});
+
+function highlightActive() {
+  var path = window.location.pathname;
+  document.querySelectorAll("#sidebar-apps .nav-item").forEach(function(el) {
+    var href = el.getAttribute("href") || "";
+    if (href && path.startsWith(href)) {
+      el.classList.add("active");
+    }
+  });
+}
 </script>
 {% block extra_script %}{% endblock %}
 </body>
