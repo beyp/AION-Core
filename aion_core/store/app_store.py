@@ -573,6 +573,76 @@ class AppStore:
 
     # ── Helpers ───────────────────────────────────────────────────
 
+    def _configure_app_env(self, app_id: str, install_path: str,
+                            appdata_path: str) -> None:
+        """
+        Configure les fichiers d'environnement de l'app pour pointer
+        les donnees vers appdata/ au lieu du repo.
+
+        - QuickMind   : config.example.yaml -> config.yaml (DB dans appdata/)
+        - ProjectMind : .env avec DB_PATH=appdata/projectmind.db
+        - Toutes apps : AION_DATA_DIR dans autostart.env
+        """
+        import re, shutil as _sh
+        root     = Path(install_path)
+        data_dir = Path(appdata_path)
+        data_dir.mkdir(parents=True, exist_ok=True)
+
+        # QuickMind : config.yaml avec DB dans appdata/
+        config_example = root / "config.example.yaml"
+        config_file    = root / "config.yaml"
+        if config_example.exists() and not config_file.exists():
+            try:
+                content = config_example.read_text(encoding="utf-8")
+                db_path = str(data_dir / "quickmind.db").replace("\\", "/")
+                content = re.sub(
+                    r'(path:\s*["\']?)data/quickmind\.db(["\']?)',
+                    lambda m: m.group(1) + db_path + m.group(2),
+                    content
+                )
+                config_file.write_text(content, encoding="utf-8")
+                logger.info("config.yaml cree pour %s avec DB=%s", app_id, db_path)
+            except Exception as e:
+                logger.warning("Config %s: %s", app_id, e)
+
+        # .env : creer depuis .env.example + injecter DB_PATH et AION_DATA_DIR
+        env_example = root / ".env.example"
+        env_file    = root / ".env"
+        db_env_path = str(data_dir / f"{app_id}.db").replace("\\", "/")
+
+        if env_example.exists() and not env_file.exists():
+            try:
+                _sh.copy2(str(env_example), str(env_file))
+                logger.info(".env cree depuis .env.example pour %s", app_id)
+            except Exception as e:
+                logger.warning(".env copy %s: %s", app_id, e)
+
+        if env_file.exists():
+            try:
+                lines_env = env_file.read_text(encoding="utf-8").splitlines()
+                keys      = {l.split("=")[0].strip()
+                             for l in lines_env if "=" in l and not l.startswith("#")}
+                extras    = []
+                if "DB_PATH" not in keys:
+                    extras.append(f"DB_PATH={db_env_path}")
+                if "AION_DATA_DIR" not in keys:
+                    extras.append(f"AION_DATA_DIR={str(data_dir).replace(chr(92), '/')}")
+                if extras:
+                    with open(env_file, "a", encoding="utf-8") as f:
+                        f.write("\n# Added by AION-Core AppStore\n")
+                        f.write("\n".join(extras) + "\n")
+                    logger.info("DB_PATH+AION_DATA_DIR injectes dans .env pour %s", app_id)
+            except Exception as e:
+                logger.warning(".env update %s: %s", app_id, e)
+
+        # Injecter AION_DATA_DIR dans autostart.env du registre
+        apps = self._registry.get("apps", {})
+        if app_id in apps:
+            env = apps[app_id].setdefault("autostart", {}).setdefault("env", {})
+            env["AION_DATA_DIR"] = str(data_dir).replace("\\", "/")
+            env["AION_APP_ID"]   = app_id
+
+
     def _get_store_cfg(self, app_id: str) -> dict | None:
         app = self._registry.get("apps", {}).get(app_id)
         return app.get("store") if app else None
