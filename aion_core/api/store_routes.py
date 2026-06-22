@@ -228,6 +228,71 @@ def register_store_routes(app, aion_app):
     async def store_list_appdata(app_id: str):
         return {"app_id": app_id, "files": _get_store().list_appdata(app_id)}
 
+    @app.get("/api/store/{app_id}/config")
+    async def store_get_config(app_id: str):
+        """Lit les fichiers config.yaml/.env d'une app et detecte les cles vides."""
+        from pathlib import Path as _P
+        from aion_core.store.config_editor import ConfigEditor
+        import json as _j
+
+        # Recuperer les chemins depuis le registre
+        install_path = appdata_path = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    s = d.get("apps", {}).get(app_id, {}).get("store", {})
+                    install_path = s.get("install_path", "")
+                    appdata_path = s.get("appdata_path", "")
+                    if install_path: break
+                except Exception: pass
+
+        if not install_path:
+            return {"success": False, "message": f"App '{app_id}' non trouvee"}
+
+        editor = ConfigEditor(app_id, install_path, appdata_path)
+        return editor.read_all()
+
+    @app.post("/api/store/{app_id}/config")
+    async def store_save_config(app_id: str, request: Request):
+        """
+        Sauvegarde des champs de config dans appdata/.
+        Body: {"filename": "config.yaml", "key": "updater.github_token", "value": "..."}
+        ou   {"updates": {"config.yaml": {"key": "val"}, ".env": {"KEY": "val"}}}
+        """
+        from pathlib import Path as _P
+        from aion_core.store.config_editor import ConfigEditor
+        import json as _j
+
+        body         = await request.json()
+        install_path = appdata_path = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    s = d.get("apps", {}).get(app_id, {}).get("store", {})
+                    install_path = s.get("install_path", "")
+                    appdata_path = s.get("appdata_path", "")
+                    if install_path: break
+                except Exception: pass
+
+        if not install_path:
+            return {"success": False, "message": f"App '{app_id}' non trouvee"}
+
+        editor = ConfigEditor(app_id, install_path, appdata_path)
+
+        # Mode bulk
+        if "updates" in body:
+            return editor.save_all_fields(body["updates"])
+
+        # Mode single field
+        filename = body.get("filename", "")
+        key      = body.get("key", "")
+        value    = body.get("value", "")
+        if not all([filename, key]):
+            return {"success": False, "message": "filename et key requis"}
+        return editor.save_field(filename, key, value)
+
     @app.post("/api/store/start/{app_id}")
     async def store_start(app_id: str):
         """
