@@ -156,46 +156,43 @@ def register_store_routes(app, aion_app):
 
     @app.post("/api/store/start/{app_id}")
     async def store_start(app_id: str):
-        """Lance une app installee."""
+        """Lance une app (bouton Start dans /store)."""
         try:
-            import json
             from pathlib import Path
-            from aion_core.discovery.launcher import AppLauncher
-            from aion_core.store.app_setup import AppSetup
+            from aion_core.discovery.launcher import AppLauncher, _merge_registries, _detect_launch_command
 
-            # Fusionner apps.json (built-in) + apps.local.json (perso)
-            registry = {"apps": {}}
-            for _rf in [Path("apps.json"), Path("apps.local.json")]:
-                if _rf.exists():
-                    try:
-                        registry["apps"].update(json.loads(_rf.read_text(encoding="utf-8")).get("apps", {}))
-                    except Exception:
-                        pass
+            # Charger le registre fusionne
+            registry = _merge_registries()
             app_cfg  = registry.get("apps", {}).get(app_id, {})
             if not app_cfg:
-                return {"success": False, "message": f"App '{app_id}' introuvable"}
+                return {"success": False, "message": f"App '{app_id}' introuvable dans apps.json / apps.local.json"}
 
-            autostart = app_cfg.get("autostart", {})
-            store_cfg = app_cfg.get("store", {})
-            install_path = store_cfg.get("install_path", autostart.get("path", ""))
+            autostart    = app_cfg.get("autostart", {})
+            store_cfg    = app_cfg.get("store", {})
+            install_path = store_cfg.get("install_path", "") or autostart.get("path", "")
 
-            # Garantir le path
-            if install_path and not autostart.get("path"):
+            # Forcer enabled=True et configurer le path
+            autostart["enabled"] = True
+            if install_path:
                 autostart["path"] = install_path
 
-            # Detecter la commande via AppSetup si manquante
-            if install_path and not autostart.get("command"):
-                setup = AppSetup(app_id, install_path)
-                cmd   = setup.get_launch_command()
-                autostart["command"] = [str(c) for c in cmd]
-                autostart["mode"]    = autostart.get("mode", "fastapi")
-                autostart["enabled"] = True
-                app_cfg["autostart"] = autostart
+            # Auto-detecter la commande si absente ou invalide
+            cmd = autostart.get("command", [])
+            if not cmd or (cmd and not Path(cmd[0]).exists()):
+                if install_path:
+                    detected = _detect_launch_command(install_path)
+                    if detected:
+                        autostart["command"] = [str(c) for c in detected]
+                        logger.info("Commande detectee pour %s: %s", app_id, detected)
+
+            autostart["mode"]         = autostart.get("mode", "fastapi")
+            autostart["health_check"] = False
+            app_cfg["autostart"]      = autostart
+            registry["apps"][app_id]  = app_cfg
 
             launcher = AppLauncher()
             launcher._registry = registry
-            result = launcher.start_app(app_id)
-            return result
+            return launcher.start_app(app_id)
         except Exception as e:
             logger.error("Store start %s: %s", app_id, e)
             return {"success": False, "message": str(e)}
