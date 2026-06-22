@@ -200,11 +200,13 @@ class AppStore:
         else:
             files_to_manage = appdata_files
 
-        # Restaurer appdata/ si existant (reinstallation apres uninstall)
-        restore_result = None
-        if files_to_manage:
-            restore_result = self.appdata_mgr.restore(app_id, str(install_path), files_to_manage)
-            logger.info("AppData restore after clone: %s", restore_result)
+        # Setup complet : venv + pip + appdata init + bat
+        from aion_core.store.app_setup import AppSetup
+        setup = AppSetup(app_id, str(install_path), self.appdata_mgr)
+        setup_result = setup.run(files_to_manage)
+        logger.info("Setup %s: %s", app_id, setup_result.get("message"))
+
+        restore_result = None  # gere par AppSetup._init_appdata
 
         # Mettre a jour apps.json
         # IMPORTANT : on met a jour meme si l'app existait deja dans apps.json
@@ -251,11 +253,9 @@ class AppStore:
         }
         self._save_manifest()
 
-        msg = f"'{app_id}' installe depuis {github_repo} dans {install_path}"
+        msg = f"'{app_id}' installe depuis {github_repo}"
         if files_to_manage:
-            msg += f" | Appdata detecte: {files_to_manage}"
-        if restore_result and restore_result.get("restored"):
-            msg += f" | Restaure: {restore_result['restored']}"
+            msg += f" | Appdata: {files_to_manage}"
 
         logger.info(msg)
         return {
@@ -264,6 +264,8 @@ class AppStore:
             "install_path":   str(install_path),
             "appdata_files":  files_to_manage,
             "auto_detected":  appdata_files is None,
+            "setup":          setup_result,
+            "bat_path":       setup_result.get("bat_path", ""),
             "message":        msg,
         }
 
