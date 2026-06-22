@@ -26,14 +26,25 @@ ICON_MAP = {
 def register_store_routes(app, aion_app):
     """Enregistre les routes App Store dans FastAPI."""
 
-    from aion_core.store.app_store import AppStore
-    store = AppStore()
+    # Lazy init : AppStore cree a la premiere requete, pas a l'import
+    # Evite les crashes si C:\AION_APPS n'existe pas encore au demarrage
+    _store_instance = [None]
+
+    def _get_store():
+        if _store_instance[0] is None:
+            from aion_core.store.app_store import AppStore
+            try:
+                _store_instance[0] = AppStore()
+            except Exception as e:
+                logger.error("AppStore init failed: %s", e)
+                raise
+        return _store_instance[0]
 
     # ── API REST ──────────────────────────────────────────────────
 
     @app.get("/api/store/status")
     async def store_status():
-        return {"apps": store.status()}
+        return {"apps": _get_store().status()}
 
     @app.get("/api/store/scan/{app_id}")
     async def store_scan(app_id: str):
@@ -41,10 +52,10 @@ def register_store_routes(app, aion_app):
         Scanne les fichiers persistants d'un repo installe et les sauvegarde.
         Utile apres un premier lancement (data/ cree par l'app au runtime).
         """
-        result = store.scan_appdata(app_id)
+        result = _get_store().scan_appdata(app_id)
         # Si de nouveaux fichiers sont detectes, les sauvegarder immediatement
         if result.get("success") and result.get("appdata_files"):
-            store_cfg = store._get_store_cfg(app_id)
+            store_cfg = _get_store()._get_store_cfg(app_id)
             if store_cfg and store_cfg.get("install_path"):
                 save_result = store.appdata_mgr.save(
                     app_id,
@@ -61,9 +72,9 @@ def register_store_routes(app, aion_app):
         Re-scanne ET sauvegarde immediatement dans appdata/.
         A appeler apres le premier lancement d'une app nouvellement installee.
         """
-        result = store.scan_appdata(app_id)
+        result = _get_store().scan_appdata(app_id)
         if result.get("success") and result.get("appdata_files"):
-            store_cfg = store._get_store_cfg(app_id)
+            store_cfg = _get_store()._get_store_cfg(app_id)
             if store_cfg and store_cfg.get("install_path"):
                 save_result = store.appdata_mgr.save(
                     app_id,
@@ -91,7 +102,7 @@ def register_store_routes(app, aion_app):
             return JSONResponse({"success": False,
                 "message": "github requis (ex: beyp/QuickMind)"}, status_code=400)
 
-        result = store.install(github_repo, app_id=app_id, appdata_files=appdata_files)
+        result = _get_store().install(github_repo, app_id=app_id, appdata_files=appdata_files)
 
         if result.get("success"):
             installed_id = result.get("app_id", (app_id or github_repo.split("/")[-1].lower()))
@@ -119,12 +130,12 @@ def register_store_routes(app, aion_app):
     @app.post("/api/store/update/{app_id}")
     async def store_update(app_id: str):
         """Git pull + backup appdata automatique."""
-        return store.update(app_id)
+        return _get_store().update(app_id)
 
     @app.post("/api/store/restore/{app_id}")
     async def store_restore(app_id: str):
         """Restaure les fichiers depuis appdata/ vers le repo."""
-        return store.restore_appdata(app_id)
+        return _get_store().restore_appdata(app_id)
 
     @app.post("/api/store/register-file")
     async def store_register_file(request: Request):
@@ -137,12 +148,12 @@ def register_store_routes(app, aion_app):
         if not app_id or not filename:
             return JSONResponse({"success": False,
                 "message": "app_id et filename requis"}, status_code=400)
-        return store.register_appdata_file(app_id, filename)
+        return _get_store().register_appdata_file(app_id, filename)
 
     @app.delete("/api/store/{app_id}")
     async def store_uninstall(app_id: str, keep_appdata: bool = True):
         """Desinstalle une app (garde appdata par defaut)."""
-        result = store.uninstall(app_id, keep_appdata=keep_appdata)
+        result = _get_store().uninstall(app_id, keep_appdata=keep_appdata)
         if result.get("success"):
             try:
                 aion_app.app_router.reload_apps()
@@ -152,7 +163,7 @@ def register_store_routes(app, aion_app):
 
     @app.get("/api/store/{app_id}/appdata")
     async def store_list_appdata(app_id: str):
-        return {"app_id": app_id, "files": store.list_appdata(app_id)}
+        return {"app_id": app_id, "files": _get_store().list_appdata(app_id)}
 
     @app.post("/api/store/start/{app_id}")
     async def store_start(app_id: str):
@@ -263,7 +274,7 @@ def register_store_routes(app, aion_app):
 
     @app.get("/store", response_class=HTMLResponse)
     async def store_page(request: Request):
-        apps_status = store.status()
+        apps_status = _get_store().status()
         rows_html   = ""
 
         for info in apps_status:
