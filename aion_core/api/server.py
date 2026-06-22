@@ -125,6 +125,111 @@ def create_app(aion_app) -> FastAPI:
     async def del_memory(key: str):
         return {"ok": aion_app.memory.forget(key)}
 
+    # ── Updater AION-Core ─────────────────────────────────────────
+
+    @app.get("/api/update/status")
+    async def update_status():
+        """Etat de la mise a jour AION-Core."""
+        if not hasattr(aion_app, "updater") or not aion_app.updater:
+            return {"update_available": False, "error": "Updater non initialise"}
+        return aion_app.updater.get_state()
+
+    @app.post("/api/update/check")
+    async def update_check():
+        """Force une verification de mise a jour immediate."""
+        if not hasattr(aion_app, "updater") or not aion_app.updater:
+            return {"error": "Updater non initialise"}
+        import asyncio
+        loop   = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, aion_app.updater.check_now)
+        return result
+
+    @app.post("/api/update/apply")
+    async def update_apply():
+        """Applique la mise a jour et redemarre AION-Core."""
+        if not hasattr(aion_app, "updater") or not aion_app.updater:
+            return {"success": False, "error": "Updater non initialise"}
+        import asyncio
+        loop   = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, aion_app.updater.apply_update)
+        return result
+
+    @app.get("/api/update/banner", response_class=__import__("fastapi.responses",
+             fromlist=["HTMLResponse"]).HTMLResponse)
+    async def update_banner():
+        """
+        Fragment HTML htmx — banniere de mise a jour.
+        Affichee dans le dashboard si update_available=True.
+        """
+        from fastapi.responses import HTMLResponse as _HR
+        if not hasattr(aion_app, "updater") or not aion_app.updater:
+            return _HR("")
+        state = aion_app.updater.get_state()
+        if not state.get("update_available"):
+            return _HR("")  # Rien a afficher
+
+        commits = state.get("commits_behind", 1)
+        msg     = state.get("latest_message", "")[:60]
+        date    = state.get("latest_date", "")
+        sha     = state.get("remote_commit", "")[:8]
+
+        banner = f'''
+        <div id="update-banner" style="
+          background:linear-gradient(135deg,rgba(30,144,255,.15),rgba(123,47,190,.15));
+          border:1px solid rgba(30,144,255,.4);border-radius:10px;
+          padding:14px 18px;margin-bottom:16px;
+          display:flex;align-items:center;gap:14px;">
+          <span style="font-size:1.5rem;">\U0001f504</span>
+          <div style="flex:1;">
+            <div style="font-weight:600;color:#1e90ff;margin-bottom:2px;">
+              Mise a jour AION-Core disponible
+              <span style="font-size:.75rem;color:#888;margin-left:8px;">{commits} commit(s)</span>
+            </div>
+            <div style="font-size:.82rem;color:#ccc;">{msg}</div>
+            <div style="font-size:.75rem;color:#888;margin-top:2px;">
+              SHA: {sha} &bull; {date}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button onclick="applyAionUpdate()"
+              style="background:#1e90ff;color:#fff;border:none;
+              padding:8px 16px;border-radius:6px;cursor:pointer;
+              font-size:.85rem;font-weight:600;">
+              \u2B07\uFE0F Mettre a jour
+            </button>
+            <button onclick="document.getElementById('update-banner').remove()"
+              style="background:transparent;border:1px solid #444;color:#888;
+              padding:8px 12px;border-radius:6px;cursor:pointer;font-size:.82rem;">
+              Plus tard
+            </button>
+          </div>
+        </div>
+        <script>
+        function applyAionUpdate() {{
+          if(!confirm("Mettre a jour AION-Core et redemarrer ?")) return;
+          var btn = event.target;
+          btn.textContent = "\u23f3 En cours...";
+          btn.disabled = true;
+          fetch("/api/update/apply", {{method:"POST"}})
+            .then(r=>r.json())
+            .then(d=>{{
+              if(d.success) {{
+                btn.textContent = "\u2705 Redemarrage...";
+                document.getElementById("update-banner").style.background =
+                  "rgba(76,175,80,.15)";
+                setTimeout(()=>location.reload(), 5000);
+              }} else {{
+                btn.textContent = "\u274c Erreur";
+                btn.disabled = false;
+                alert(d.message || "Erreur lors de la mise a jour");
+              }}
+            }})
+            .catch(e=>{{ btn.textContent="Erreur"; btn.disabled=false; }});
+        }}
+        </script>
+        '''
+        return _HR(banner)
+
     # ── Route IA ──────────────────────────────────────────────────
 
     @app.post("/api/route")
