@@ -1,11 +1,11 @@
 """
 AppStore -- Gestionnaire d'installation et de mise a jour des apps AION.
 
-C:\AION_APPS\
-  repos\<AppName>\      <- git clone
-  appdata\<app_id>\     <- fichiers persistants (memory.json, *.db, *.sqlite...)
+C:/AION_APPS/
+  repos/<AppName>/      <- git clone
+  appdata/<app_id>/     <- fichiers persistants (memory.json, *.db, *.sqlite...)
   backups\               <- zips horodates avant chaque update
-  .aion\apps_store.json  <- manifest local
+  .aion/apps_store.json  <- manifest local
 
 Usage :
     store = AppStore()
@@ -218,7 +218,7 @@ class AppStore:
         """
         Installe une app depuis GitHub via git clone.
 
-        1. git clone dans C:\AION_APPS\repos\
+        1. git clone dans C:/AION_APPS/repos/
         2. Scan auto des fichiers persistants (si appdata_files non fourni)
         3. Restaure appdata/ si une installation precedente existait
         4. Met a jour apps.json (status, install_path, url, appdata_files)
