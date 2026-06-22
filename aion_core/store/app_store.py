@@ -323,7 +323,7 @@ class AppStore:
         if not _autostart.get("port"):
             _autostart["port"]     = 8765    # port par defaut
 
-        # Injecter DATA_DIR -> C:\AION_APPS\appdata\<app_id>
+        # Injecter DATA_DIR -> C:/AION_APPS/appdata/<app_id>
         # L'app peut utiliser os.getenv("AION_DATA_DIR") pour stocker ses fichiers
         appdata_path = str(self.root / "appdata" / app_id)
         Path(appdata_path).mkdir(parents=True, exist_ok=True)
