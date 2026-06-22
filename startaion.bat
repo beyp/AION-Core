@@ -1,5 +1,8 @@
 @echo off
 title AION-Core
+cls
+
+:START
 echo.
 echo  ================================================
 echo   AION-Core v1.0 ^— AI-First Personal Orchestrator
@@ -26,4 +29,24 @@ echo  [3/3] Demarrage AION-Core...
 echo.
 python main.py
 
+:: ── Gestion du retour ────────────────────────────────────────────
+:: os.execv() remplace le process Python → ce point n'est jamais atteint
+:: Si on arrive ici c'est un crash ou arret manuel
+
+if %ERRORLEVEL% EQU 0 (
+    :: Arret propre (ex: restart via mise a jour deja gere par os.execv)
+    goto END
+)
+
+:: Crash ou erreur
+echo.
+echo  [ERREUR] AION-Core s'est arrete avec le code %ERRORLEVEL%
+echo  Redemarrage dans 5 secondes... (Ctrl+C pour annuler)
+timeout /t 5 /nobreak >nul
+cls
+goto START
+
+:END
+echo.
+echo  AION-Core arrete proprement.
 pause
