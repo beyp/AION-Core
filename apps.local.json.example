@@ -1,0 +1,39 @@
+{
+  "_readme": "Copy this file to apps.local.json and customize. This file is git-ignored.",
+  "version": "1.0",
+  "apps": {
+    "quickmind": {
+      "name": "QuickMind",
+      "description": "Gestionnaire de taches",
+      "type": "fastapi",
+      "status": "installed",
+      "connector": "aion_core/apps/quickmind/connector.py",
+      "url": "http://localhost:8765",
+      "health_endpoint": "/health",
+      "github": "beyp/QuickMind",
+      "icon": "check",
+      "version": "1.0",
+      "autostart": {
+        "enabled": true,
+        "mode": "fastapi",
+        "path": "C:\\AION_APPS\\repos\\QuickMind",
+        "command": [
+          "C:\\AION_APPS\\repos\\QuickMind\\.venv\\Scripts\\python.exe",
+          "run_api.py"
+        ],
+        "port": 8765,
+        "startup_order": 1,
+        "health_check": false,
+        "env": {}
+      },
+      "store": {
+        "install_path": "C:\\AION_APPS\\repos\\QuickMind",
+        "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
+        "appdata_files": [],
+        "github": "beyp/QuickMind",
+        "installed_at": "",
+        "last_update": ""
+      }
+    }
+  }
+}
