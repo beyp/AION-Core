@@ -29,6 +29,7 @@ class AionApp:
         self.app_router = None
         self.discovery  = None
         self.launcher   = None   # AppLauncher — autostart des apps
+        self.updater    = None   # AionUpdater — veille mise a jour AION-Core
 
         self._init_components()
 
@@ -97,5 +98,8 @@ class AionApp:
 
         t = threading.Thread(target=_autostart, daemon=True, name="autostart")
         t.start()
+
+        # Demarrer le watcher de mise a jour AION-Core
+        self.updater.start()
 
         uvicorn.run(app, host=host, port=port, log_level="info")
