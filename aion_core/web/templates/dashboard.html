@@ -2,6 +2,13 @@
 {% block title %}Dashboard — AION-Core{% endblock %}
 
 {% block content %}
+<!-- Banniere mise a jour AION (htmx polling toutes les 5 min) -->
+<div id="update-banner-zone"
+     hx-get="/api/update/banner"
+     hx-trigger="load, every 300s"
+     hx-swap="innerHTML">
+</div>
+
 <!-- Stats -->
 <div class="stats-grid">
   <div class="stat-box">
