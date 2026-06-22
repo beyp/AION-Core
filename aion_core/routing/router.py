@@ -15,11 +15,12 @@ Apps disponibles :
 - quickmind  : gestion de tâches (ajouter, lister, modifier, supprimer)
 - ado        : Azure DevOps (items, statuts, recherche)
 - projectmind: gestion de projets (ProjectMind)
-- system     : système (CPU, RAM, réseau, disque, uptime)
-- timer      : compte à rebours avec notification
-- memory     : memoire AION (remember, recall, forget, list, import_json, clear)
-- search     : recherche dans plusieurs apps simultanément
-- direct     : répondre directement sans app
+- system     : systeme (CPU, RAM, reseau, disque, uptime)
+- timer      : compte a rebours avec notification
+- memory     : memoire AION (remember, recall, forget, list, import_json, stats)
+- appctl     : controle des apps (start, stop, status, list_apps)
+- search     : recherche dans plusieurs apps simultanement
+- direct     : repondre directement sans app
 
 Retourne UNIQUEMENT ce JSON :
 {
@@ -39,7 +40,10 @@ Exemples :
 "importe ces clés en mémoire: {..." → {"app":"memory","action":"import_json","params":{"data":{...}},"confidence":0.97,"response_hint":"J'importe les clés en mémoire."}
 "liste ma mémoire" → {"app":"memory","action":"list","params":{},"confidence":0.98,"response_hint":"Voici ta mémoire."}
 "souviens-toi que mon projet = AION" → {"app":"memory","action":"remember","params":{"key":"mon_projet","value":"AION"},"confidence":0.99,"response_hint":"Je mémorise."}
-"qu'est-ce que AIOnPath ?" → {"app":"memory","action":"recall","params":{"key":"AIOnPath"},"confidence":0.95,"response_hint":"Je cherche dans ma mémoire."}
+"qu'est-ce que AIOnPath ?" → {"app":"memory","action":"recall","params":{"key":"AIOnPath"},"confidence":0.95,"response_hint":"Je cherche dans ma memoire."}
+"lance quickmind" → {"app":"appctl","action":"start","params":{"app_id":"quickmind"},"confidence":0.99,"response_hint":"Je lance QuickMind."}
+"arrete projectmind" → {"app":"appctl","action":"stop","params":{"app_id":"projectmind"},"confidence":0.99,"response_hint":"J'arrete ProjectMind."}
+"statut de mes apps" → {"app":"appctl","action":"status","params":{},"confidence":0.95,"response_hint":"Voici le statut de tes apps."}
 """
 
 
@@ -170,6 +174,8 @@ class AppRouter:
             result_text = self._universal_search(params.get("keyword", text))
         elif app_name == "memory":
             result_text = self._handle_memory(action, params)
+        elif app_name == "appctl":
+            result_text = self._handle_appctl(action, params)
 
         # 3. Construire la réponse finale
         final_response = voice_hint
@@ -360,6 +366,97 @@ class AppRouter:
             return f"\U0001f5d1 {len(mem)} entree(s) de type '{mtype}' supprimee(s)"
 
         return f"Action memoire inconnue : '{action}'. Actions : remember, recall, forget, list, import_json, stats"
+
+    def _handle_appctl(self, action: str, params: dict) -> str:
+        """
+        Controle les apps AION via commande IA.
+        Actions : start, stop, status, list_apps, restart
+        """
+        from aion_core.store.process_manager import ProcessManager
+        from pathlib import Path
+        import json
+
+        # Charger le registre fusionne
+        registry = {}
+        for rf in [Path("apps.local.json"), Path("apps.json")]:
+            if rf.exists():
+                try:
+                    data = json.loads(rf.read_text(encoding="utf-8"))
+                    for k, v in data.get("apps", {}).items():
+                        registry.setdefault(k, v)
+                except Exception:
+                    pass
+
+        pm = ProcessManager()
+
+        # ── list_apps ──────────────────────────────────────────
+        if action in ("list_apps", "list", "liste"):
+            if not registry:
+                return "Aucune app installee."
+            lines = ["\U0001f4e6 Apps AION :"]
+            for app_id, cfg in registry.items():
+                port    = cfg.get("autostart", {}).get("port", 0)
+                running = pm.is_running(app_id, port)
+                status  = "\u25cf En cours" if running else "\u25cb Arrete"
+                color   = "\u2705" if running else "\u274c"
+                lines.append(f"  {color} {app_id} ({cfg.get('name', app_id)}) — {status}")
+            return "\n".join(lines)
+
+        # ── status ─────────────────────────────────────────────
+        elif action in ("status", "statut", "etat"):
+            app_id = params.get("app_id", "")
+            if app_id:
+                cfg  = registry.get(app_id, {})
+                port = cfg.get("autostart", {}).get("port", 0)
+                run  = pm.is_running(app_id, port)
+                return f"{app_id}: {'\u2705 En cours' if run else '\u274c Arrete'}"
+            # Status de toutes les apps
+            return self._handle_appctl("list_apps", {})
+
+        # ── start ──────────────────────────────────────────────
+        elif action in ("start", "lance", "demarrer", "lancer", "run"):
+            app_id = params.get("app_id", "") or params.get("app", "")
+            if not app_id:
+                return "Quelle app lancer ? (ex: lance quickmind)"
+            cfg = registry.get(app_id)
+            if not cfg:
+                return f"App '{app_id}' introuvable. Apps disponibles: {list(registry.keys())}"
+
+            store_cfg    = cfg.get("store", {})
+            autostart    = cfg.get("autostart", {})
+            install_path = store_cfg.get("install_path") or autostart.get("path", "")
+            port         = int(autostart.get("port", 0))
+            env          = {"AION_DATA_DIR": f"C:/AION_APPS/appdata/{app_id}",
+                            "AION_APP_ID": app_id}
+            env.update(autostart.get("env", {}))
+
+            if not install_path or not Path(install_path).exists():
+                return (f"\u274c Dossier introuvable pour {app_id}: {install_path!r}. "
+                        f"Installe l'app via /store d'abord.")
+
+            result = pm.start(app_id=app_id, install_path=install_path,
+                              port=port, env=env)
+            return result.get("message", str(result))
+
+        # ── stop ───────────────────────────────────────────────
+        elif action in ("stop", "arrete", "stopper", "kill", "arreter"):
+            app_id = params.get("app_id", "") or params.get("app", "")
+            if not app_id:
+                return "Quelle app arreter ? (ex: arrete quickmind)"
+            cfg  = registry.get(app_id, {})
+            port = int(cfg.get("autostart", {}).get("port", 0))
+            result = pm.stop(app_id, port=port)
+            return result.get("message", str(result))
+
+        # ── restart ────────────────────────────────────────────
+        elif action in ("restart", "redemarrer", "relancer"):
+            app_id = params.get("app_id", "") or params.get("app", "")
+            stop_r = self._handle_appctl("stop",  {"app_id": app_id})
+            import time; time.sleep(1)
+            start_r = self._handle_appctl("start", {"app_id": app_id})
+            return f"Restart {app_id}: {stop_r} → {start_r}"
+
+        return f"Action appctl inconnue: '{action}'. Actions: start, stop, status, list_apps, restart"
 
     @property
     def available_apps(self) -> list[str]:
