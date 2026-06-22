@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 class AionApp:
     """
     Application principale AION-Core.
-    
-    Responsabilités :
+
+    Responsabilites :
     - Initialiser tous les composants
-    - Démarrer le serveur web (FastAPI)
-    - Gérer le cycle de vie
+    - Demarrer le serveur web (FastAPI)
+    - Gerer le cycle de vie
     """
 
     VERSION = "1.0.0"
@@ -24,12 +24,11 @@ class AionApp:
         self._setup_logging()
         logger.info("AION-Core v%s starting...", self.VERSION)
 
-        # Composants (initialisés dans _init_components)
-        self.memory    = None
-        self.scheduler = None
-        self.notifier  = None
-        self.router    = None
-        self.ai        = None
+        self.memory     = None
+        self.brain      = None
+        self.app_router = None
+        self.discovery  = None
+        self.launcher   = None   # AppLauncher — autostart des apps
 
         self._init_components()
 
@@ -48,18 +47,19 @@ class AionApp:
 
     def _init_components(self) -> None:
         """Initialise tous les composants."""
-        from aion_core.memory.manager import MemoryManager
-        from aion_core.ai.brain import AionBrain
-        from aion_core.routing.router import AppRouter
-
-        self.memory    = MemoryManager()
-        self.brain     = AionBrain()
-        self.app_router = AppRouter(self.brain, self.memory)
-
-        # App Discovery — Phase 3
+        from aion_core.memory.manager       import MemoryManager
+        from aion_core.ai.brain             import AionBrain
+        from aion_core.routing.router       import AppRouter
         from aion_core.discovery.app_discovery import AppDiscovery
-        self.discovery = AppDiscovery(self.brain, self.memory)
-        logger.info("Composants initialisés — Apps: %s",
+        from aion_core.discovery.launcher   import AppLauncher
+
+        self.memory     = MemoryManager()
+        self.brain      = AionBrain()
+        self.app_router = AppRouter(self.brain, self.memory)
+        self.discovery  = AppDiscovery(self.brain, self.memory)
+        self.launcher   = AppLauncher()
+
+        logger.info("Composants initialises — Apps: %s",
                     [a["id"] for a in self.discovery.list_apps()])
 
     def run(self) -> None:
@@ -71,7 +71,7 @@ class AionApp:
         port = int(os.getenv("AION_PORT", "8000"))
 
         print(f"\n{'='*50}")
-        print(f"  🤖 AION-Core v{self.VERSION}")
+        print(f"  \U0001f916 AION-Core v{self.VERSION}")
         print(f"  AI-First Personal Orchestrator")
         print(f"{'='*50}")
         print(f"  Dashboard : http://localhost:{port}")
@@ -81,14 +81,14 @@ class AionApp:
 
         app = create_app(self)
 
-        # Lancer les apps autostart en arriere-plan
+        # Lancer les apps autostart en arriere-plan (non bloquant)
         import threading
 
         def _autostart():
             try:
                 logger.info("Demarrage des apps autostart...")
-                results = self.launcher.start_all()
-                for app_id, res in results.items():
+                all_results = self.launcher.start_all()
+                for app_id, res in all_results.items():
                     status = "OK" if res.get("success") else "ECHEC"
                     logger.info("  Autostart %s: %s -- %s",
                                 app_id, status, res.get("message", ""))
@@ -98,9 +98,4 @@ class AionApp:
         t = threading.Thread(target=_autostart, daemon=True, name="autostart")
         t.start()
 
-        uvicorn.run(
-            app,
-            host=host,
-            port=port,
-            log_level="info",
-        )
+        uvicorn.run(app, host=host, port=port, log_level="info")
