@@ -184,7 +184,7 @@ class AppLauncher:
         path    = autostart.get("path", "")
         command = autostart.get("command", ["python", "run_api.py"])
         port    = autostart.get("port", 8765)
-        timeout = autostart.get("health_timeout_seconds", 15)
+        timeout = autostart.get("health_timeout_seconds", 30)  # 30s par defaut
         env_extra = autostart.get("env", {})
 
         if not path or not Path(path).exists():
@@ -207,8 +207,8 @@ class AppLauncher:
                 command,
                 cwd           = path,
                 env           = env,
-                stdout        = subprocess.PIPE,
-                stderr        = subprocess.PIPE,
+                stdout        = subprocess.DEVNULL,   # les apps ont leurs propres logs
+                stderr        = subprocess.DEVNULL,   # evite UnicodeDecodeError cp1252
                 creationflags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
             )
             self._processes[app_id] = proc
