@@ -1,65 +1,124 @@
 {% extends "base.html" %}
 {% block title %}IA Chat — AION-Core{% endblock %}
 
+{% block extra_style %}
+<style>
+.chat-drop-zone { position:relative; }
+.chat-drop-zone.drag-over .chat-hist {
+  border:2px dashed var(--accent) !important;
+  background:color-mix(in srgb,var(--accent) 5%,transparent) !important;
+}
+.img-thumb {
+  display:inline-flex;align-items:center;gap:6px;
+  background:#12141f;border:1px solid var(--border);
+  border-radius:6px;padding:4px 8px;font-size:.78rem;
+  max-width:300px;
+}
+.img-thumb img { max-height:48px;border-radius:4px; }
+.chat-toolbar {
+  display:flex;align-items:center;gap:6px;
+  padding:6px 0;border-top:1px solid var(--border);
+  margin-top:6px;
+}
+.tool-btn {
+  background:var(--card);border:1px solid var(--border);
+  color:var(--dim);padding:6px 10px;border-radius:6px;
+  cursor:pointer;font-size:.82rem;transition:all .15s;
+  display:flex;align-items:center;gap:4px;
+}
+.tool-btn:hover { border-color:var(--accent);color:var(--accent); }
+.send-btn { padding:9px 20px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card" style="height:calc(100vh - 130px);display:flex;flex-direction:column;padding:16px;">
-  <div class="card-title">
+<div class="card chat-drop-zone"
+     style="height:calc(100vh - 130px);display:flex;flex-direction:column;padding:16px;"
+     id="chat-card">
+
+  <!-- Header -->
+  <div class="card-title" style="margin-bottom:10px;">
     🤖 AION IA Chat
-    <span class="badge badge-green" style="margin-left:auto;">{{ groq_model }}</span>
-    <button onclick="clearChat()" style="background:none;border:none;color:var(--dim);
-      cursor:pointer;font-size:0.82rem;margin-left:8px;">🗑 Clear</button>
+    <span class="badge badge-green" style="margin-left:8px;">{{ groq_model }}</span>
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+      <button onclick="importMemoryJson()"
+        class="tool-btn" title="Importer un fichier memory.json dans la mémoire AION">
+        🧠 Import Memory
+      </button>
+      <button onclick="clearChat()"
+        style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:.82rem;">
+        🗑 Clear
+      </button>
+    </div>
   </div>
 
   <!-- Historique -->
-  <div class="chat-hist" id="chat-hist" style="flex:1;">
+  <div class="chat-hist" id="chat-hist" style="flex:1;overflow-y:auto;">
     <div style="color:var(--dim);">
 Bonjour Pascal ! Je suis AION-Core, votre assistant IA personnel.
-Je peux gérer vos tâches QuickMind, vos items ADO, votre système et plus encore.
-Posez-moi n'importe quelle question ou donnez-moi une commande.
+<br>💡 <strong>Astuce :</strong> Colle une image directement avec <kbd style="background:#2a2d3e;padding:1px 5px;border-radius:3px;">Ctrl+V</kbd> ou glisse-la ici.
+<br>💡 Importe un <strong>memory.json</strong> pour charger des clés-valeurs dans ma mémoire.
     </div>
   </div>
 
-  <!-- Zone image -->
-  <div id="img-zone" style="margin-bottom:8px;display:none;">
-    <div style="display:flex;align-items:center;gap:8px;background:#12141f;
-      border-radius:6px;padding:6px 10px;font-size:0.78rem;">
-      <img id="img-preview" style="max-height:60px;border-radius:4px;">
-      <span id="img-name" style="color:var(--dim);flex:1;"></span>
-      <button onclick="clearImg()" style="background:var(--red);color:white;
-        border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;">×</button>
+  <!-- Preview image collée/importée -->
+  <div id="img-zone" style="margin-top:8px;display:none;">
+    <div class="img-thumb">
+      <img id="img-preview" src="" alt="preview">
+      <span id="img-name" style="color:var(--dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <button onclick="clearImg()"
+        style="background:var(--red);color:#fff;border:none;border-radius:50%;
+        width:18px;height:18px;cursor:pointer;font-size:.7rem;flex-shrink:0;">×</button>
     </div>
   </div>
 
-  <!-- Input -->
-  <div class="chat-input-row">
-    <button onclick="document.getElementById('img-inp').click()"
-      style="background:var(--card);border:1px solid var(--border);color:var(--dim);
-      padding:10px;border-radius:6px;cursor:pointer;font-size:1rem;" title="Image">📷</button>
-    <input type="file" id="img-inp" accept="image/*" style="display:none;"
-      onchange="loadImg(this)">
+  <!-- Barre d'outils + input -->
+  <div class="chat-toolbar">
+    <!-- Bouton image fichier -->
+    <button class="tool-btn" onclick="document.getElementById('img-inp').click()"
+      title="Choisir une image (ou Ctrl+V pour coller)">
+      📷 Image
+    </button>
+    <input type="file" id="img-inp" accept="image/*" style="display:none;" onchange="loadImgFile(this)">
+
+    <!-- Input texte principal -->
     <input class="chat-input" id="chat-inp" type="text"
-      placeholder="Tape ta commande... (Ctrl+Entrée pour envoyer)"
-      autocomplete="off"
-      onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter')sendChat()">
+      placeholder="Tape une commande… ou colle une image avec Ctrl+V"
+      autocomplete="off" style="flex:1;"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey) { event.preventDefault(); sendChat(); }">
+
+    <!-- Envoyer -->
     <button class="send-btn" onclick="sendChat()">Envoyer</button>
   </div>
+
+  <!-- Input caché pour import memory.json -->
+  <input type="file" id="memory-inp" accept=".json" style="display:none;" onchange="loadMemoryJson(this)">
 </div>
 {% endblock %}
 
 {% block extra_script %}
 <script>
-var _img = null;
+var _img  = null;
 var _hist = [];
 
-function loadImg(input) {
+// ── Image depuis fichier ──────────────────────────────────────────
+function loadImgFile(input) {
   if (!input.files || !input.files[0]) return;
-  var file = input.files[0];
+  _loadImgFromFile(input.files[0]);
+}
+
+function _loadImgFromFile(file) {
+  if (!file.type.startsWith("image/")) {
+    showChatMsg("system", "⚠️ Fichier non supporté : " + file.type + ". Utilise une image.");
+    return;
+  }
   var reader = new FileReader();
   reader.onload = function(e) {
     _img = { data: e.target.result.split(",")[1], mime: file.type, name: file.name };
     document.getElementById("img-preview").src = e.target.result;
-    document.getElementById("img-name").textContent = file.name;
+    document.getElementById("img-name").textContent = "📎 " + file.name;
     document.getElementById("img-zone").style.display = "block";
+    document.getElementById("chat-inp").focus();
   };
   reader.readAsDataURL(file);
 }
@@ -70,24 +129,117 @@ function clearImg() {
   document.getElementById("img-inp").value = "";
 }
 
-function clearChat() {
-  document.getElementById("chat-hist").innerHTML =
-    "<div style='color:var(--dim);'>Conversation effacée.</div>";
-  _hist = [];
+// ── Coller image depuis clipboard (Ctrl+V) ────────────────────────
+document.addEventListener("paste", function(e) {
+  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (item.type.startsWith("image/")) {
+      e.preventDefault();
+      var file = item.getAsFile();
+      // Nommer l'image selon la source probable
+      var name = "clipboard_" + new Date().toISOString().slice(11,19).replace(/:/g,"") + ".png";
+      var renamedFile = new File([file], name, { type: file.type });
+      _loadImgFromFile(renamedFile);
+      showChatMsg("system", "🖼 Image collée depuis le presse-papier. Ajoute un message et envoie !");
+      return;
+    }
+  }
+});
+
+// ── Drag & Drop image ─────────────────────────────────────────────
+var chatCard = document.getElementById("chat-card");
+
+chatCard.addEventListener("dragover", function(e) {
+  e.preventDefault();
+  chatCard.classList.add("drag-over");
+});
+chatCard.addEventListener("dragleave", function(e) {
+  if (!chatCard.contains(e.relatedTarget))
+    chatCard.classList.remove("drag-over");
+});
+chatCard.addEventListener("drop", function(e) {
+  e.preventDefault();
+  chatCard.classList.remove("drag-over");
+  var files = e.dataTransfer.files;
+  if (files && files[0]) _loadImgFromFile(files[0]);
+});
+
+// ── Import memory.json ────────────────────────────────────────────
+function importMemoryJson() {
+  document.getElementById("memory-inp").click();
 }
 
+function loadMemoryJson(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var data;
+    try {
+      data = JSON.parse(e.target.result);
+    } catch(err) {
+      showChatMsg("error", "❌ Fichier JSON invalide : " + err.message);
+      return;
+    }
+
+    // Détecter le format : {key: {value, type}} ou {key: value}
+    var entries = [];
+    for (var k in data) {
+      if (data.hasOwnProperty(k)) {
+        var v = data[k];
+        if (v && typeof v === "object" && "value" in v) {
+          // Format AION natif : {value: "...", type: "..."}
+          entries.push({ key: k, value: String(v.value), type: v.type || "imported" });
+        } else if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+          // Format simple : {key: value}
+          entries.push({ key: k, value: String(v), type: "imported" });
+        }
+      }
+    }
+
+    if (entries.length === 0) {
+      showChatMsg("system", "⚠️ Aucune clé-valeur trouvée dans ce fichier.");
+      return;
+    }
+
+    showChatMsg("system", "⏳ Import de " + entries.length + " clé(s) depuis " + file.name + "...");
+
+    // Envoyer chaque clé via /api/memory/{key}
+    var promises = entries.map(function(entry) {
+      return fetch("/api/memory/" + encodeURIComponent(entry.key), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: entry.value, type: entry.type })
+      }).then(r => r.json());
+    });
+
+    Promise.all(promises).then(function(results) {
+      var ok = results.filter(r => r.ok).length;
+      showChatMsg("ai",
+        "✅ Memory import terminé !\n" +
+        "📥 " + ok + " / " + entries.length + " clés importées depuis <strong>" + file.name + "</strong>\n" +
+        "Clés : " + entries.slice(0,8).map(e => "<code>" + e.key + "</code>").join(", ") +
+        (entries.length > 8 ? " +" + (entries.length-8) + " autres" : "")
+      );
+      input.value = "";
+    }).catch(function(err) {
+      showChatMsg("error", "❌ Erreur import : " + err);
+    });
+  };
+  reader.readAsText(file);
+}
+
+// ── Chat principal ────────────────────────────────────────────────
 function sendChat() {
   var inp  = document.getElementById("chat-inp");
-  var hist = document.getElementById("chat-hist");
   var text = inp.value.trim();
   if (!text && !_img) return;
 
-  var display = _img ? "📷 " + (_img.name || "Image") + (text ? " + " + text : "") : text;
-  hist.insertAdjacentHTML("beforeend",
-    "<div class='chat-user'>Vous : " + display + "</div>");
-  hist.insertAdjacentHTML("beforeend",
-    "<div id='chat-load' style='color:var(--dim);'>⏳ Groq analyse...</div>");
-  hist.scrollTop = hist.scrollHeight;
+  var displayText = text || "";
+  var displayImg  = _img ? " 🖼 <em>" + _img.name + "</em>" : "";
+  appendMsg("user", "Vous : " + displayText + displayImg);
+  appendMsg("loading", "⏳ Groq analyse...");
   inp.value = "";
 
   var payload = { text: text || "Analyse cette image." };
@@ -100,34 +252,62 @@ function sendChat() {
   })
   .then(r => r.json())
   .then(data => {
-    var ld = document.getElementById("chat-load");
-    if (ld) ld.remove();
-
+    removeLoading();
     var resp   = data.response || "";
-    var result = data.result || "";
-    var app    = data.app || "";
+    var result = data.result   || "";
 
     var html = "<div class='chat-ai'>🤖 " + resp + "</div>";
-    if (result && result !== resp) {
-      html += "<div style='background:#12141f;border-radius:6px;padding:10px;" +
-              "margin-top:6px;font-size:0.8rem;color:#ccc;white-space:pre-wrap;'>" +
-              result.slice(0, 500) + (result.length > 500 ? "..." : "") + "</div>";
+    if (result && result !== resp && result.length > 0) {
+      html += "<div style='background:#12141f;border-radius:6px;padding:10px 12px;" +
+              "margin-top:6px;font-size:.8rem;color:#ccc;white-space:pre-wrap;max-height:200px;overflow-y:auto;'>" +
+              escHtml(result).slice(0,800) +
+              (result.length > 800 ? "\n<span style='color:#888;'>[...tronqué]</span>" : "") +
+              "</div>";
     }
     if (data.url) {
       html += "<div style='margin-top:6px;'><a href='" + data.url +
-              "' target='_blank' style='color:var(--accent);font-size:0.78rem;'>" +
-              "🔗 Voir page détail</a></div>";
+              "' target='_blank' style='color:var(--accent);font-size:.78rem;'>🔗 Voir page détail</a></div>";
     }
-    hist.insertAdjacentHTML("beforeend", html);
-    hist.scrollTop = hist.scrollHeight;
+    document.getElementById("chat-hist").insertAdjacentHTML("beforeend", html);
+    document.getElementById("chat-hist").scrollTop = 99999;
     if (_img) clearImg();
   })
   .catch(err => {
-    var ld = document.getElementById("chat-load");
-    if (ld) ld.remove();
-    hist.insertAdjacentHTML("beforeend",
-      "<div class='chat-error'>Erreur: " + err + "</div>");
+    removeLoading();
+    showChatMsg("error", "❌ Erreur réseau : " + err);
   });
+}
+
+// ── Helpers UI ────────────────────────────────────────────────────
+function appendMsg(type, html) {
+  var hist = document.getElementById("chat-hist");
+  var cls  = type === "user" ? "chat-user" :
+             type === "ai"   ? "chat-ai"   :
+             type === "error"? "chat-error":
+             type === "loading" ? "" : "chat-ai";
+  var id   = type === "loading" ? " id='chat-load'" : "";
+  var style = type === "loading" ? " style='color:var(--dim);'" : "";
+  hist.insertAdjacentHTML("beforeend",
+    "<div class='" + cls + "'" + id + style + ">" + html + "</div>");
+  hist.scrollTop = 99999;
+}
+
+function showChatMsg(type, msg) { appendMsg(type === "system" ? "ai" : type, msg); }
+
+function removeLoading() {
+  var ld = document.getElementById("chat-load");
+  if (ld) ld.remove();
+}
+
+function clearChat() {
+  document.getElementById("chat-hist").innerHTML =
+    "<div style='color:var(--dim);'>Conversation effacée.</div>";
+  _hist = [];
+  clearImg();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 </script>
 {% endblock %}
