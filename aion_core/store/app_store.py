@@ -265,8 +265,18 @@ class AppStore:
         _autostart["health_check"] = False   # non bloquant
         if not _autostart.get("port"):
             _autostart["port"]     = 8765    # port par defaut
+
+        # Injecter DATA_DIR -> C:\AION_APPS\appdata\<app_id>
+        # L'app peut utiliser os.getenv("AION_DATA_DIR") pour stocker ses fichiers
+        appdata_path = str(self.root / "appdata" / app_id)
+        Path(appdata_path).mkdir(parents=True, exist_ok=True)
+        _env = _autostart.setdefault("env", {})
+        _env["AION_DATA_DIR"]  = appdata_path
+        _env["AION_APP_ID"]    = app_id
+        _env["AION_APPS_ROOT"] = str(self.root)
+
         apps[app_id]["autostart"] = _autostart
-        logger.info("Autostart configure pour %s: %s", app_id, _cmd)
+        logger.info("Autostart configure pour %s: cmd=%s  DATA_DIR=%s", app_id, _cmd, appdata_path)
 
         self._save_registry()
 
