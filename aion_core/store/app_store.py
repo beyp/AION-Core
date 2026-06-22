@@ -278,6 +278,10 @@ class AppStore:
         setup_result = setup.run(files_to_manage)
         logger.info("Setup %s: %s", app_id, setup_result.get("message"))
 
+        # Configuration specifique a chaque app
+        appdata_path = str(self.root / "appdata" / app_id)
+        self._configure_app_env(app_id, str(install_path), appdata_path)
+
         restore_result = None  # gere par AppSetup._init_appdata
 
         # Mettre a jour apps.json
