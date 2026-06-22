@@ -66,76 +66,120 @@ class ProcessManager:
     @staticmethod
     def detect_launch_type(install_path: str) -> dict:
         """
-        Detecte automatiquement le type de lancement et la commande.
+        Detecte automatiquement le type de lancement.
+
+        Priorite :
+          1. docker-compose.yml -> type "docker"
+          2. Dockerfile seul   -> type "docker_build"
+          3. run_api.py / main.py avec uvicorn -> type "uvicorn"
+          4. run_api.py / main.py              -> type "python"
 
         Returns:
             {
-                "type":    "fastapi" | "docker" | "python",
-                "command": [...],
-                "port":    int | None,
-                "info":    str,
+                "type":        "docker"|"uvicorn"|"python"|"unknown",
+                "command":     [...],
+                "compose_file": str | None,
+                "port":        int | None,
+                "info":        str,
             }
         """
         root = Path(install_path)
         if not root.exists():
-            return {"type": "unknown", "command": [], "port": None,
+            return {"type": "unknown", "command": [], "compose_file": None,
+                    "port": None,
                     "info": f"Dossier introuvable: {install_path}"}
 
         venv_py = root / ".venv" / "Scripts" / "python.exe"
         python  = str(venv_py) if venv_py.exists() else sys.executable
 
-        # 1. Docker Compose ?
+        # 1. Docker Compose (priorite si present)
         for dc in ["docker-compose.yml", "docker-compose.yaml",
                    "compose.yml", "compose.yaml"]:
             if (root / dc).exists():
-                return {
-                    "type":    "docker",
-                    "command": ["docker", "compose", "up", "-d"],
-                    "port":    None,
-                    "info":    f"Docker Compose detecte ({dc})",
-                }
-
-        # 2. Scripts Python par ordre de priorite
-        scripts = [
-            ("run_api.py",   "fastapi"),
-            ("run.py",       "fastapi"),
-            ("main.py",      "python"),
-            ("app.py",       "fastapi"),
-            ("server.py",    "fastapi"),
-            ("start.py",     "python"),
-            ("manage.py",    "python"),
-        ]
-        for script, stype in scripts:
-            if (root / script).exists():
-                # Verifier si uvicorn est mentionne dans le fichier
+                # Lire le port depuis le compose
+                port = None
                 try:
-                    content = (root / script).read_text(encoding="utf-8",
-                                                         errors="replace")
-                    if "uvicorn" in content or "fastapi" in content.lower():
-                        stype = "fastapi"
+                    content = (root / dc).read_text(encoding="utf-8",
+                                                      errors="replace")
+                    import re
+                    m = re.search(r'- ["']?(\d{4,5}):\d{4,5}["']?', content)
+                    if m:
+                        port = int(m.group(1))
                 except Exception:
                     pass
                 return {
-                    "type":    stype,
-                    "command": [python, script],
-                    "port":    None,
-                    "info":    f"Script detecte: {script}",
+                    "type":         "docker",
+                    "command":      ["docker", "compose", "-f", dc, "up", "-d", "--build"],
+                    "compose_file": str(root / dc),
+                    "port":         port,
+                    "info":         f"Docker Compose detecte ({dc}), port={port}",
                 }
 
-        # 3. Bat de lancement AION genere ?
-        for bat in root.glob("start_*.bat"):
+        # 2. Dockerfile seul (sans compose)
+        if (root / "Dockerfile").exists():
+            app_id = root.name.lower()
             return {
-                "type":    "python",
-                "command": [str(bat)],
-                "port":    None,
-                "info":    f"Bat AION detecte: {bat.name}",
+                "type":         "docker_build",
+                "command":      ["docker", "build", "-t", app_id, "."],
+                "compose_file": None,
+                "port":         None,
+                "info":         "Dockerfile detecte (sans compose) — build requis",
             }
 
+        # 3. Scripts Python
+        scripts = [
+            "run_api.py", "run.py", "main.py", "app.py",
+            "server.py",  "start.py",
+        ]
+        for script in scripts:
+            if (root / script).exists():
+                # Detecter si uvicorn est utilise
+                stype = "python"
+                try:
+                    content = (root / script).read_text(encoding="utf-8",
+                                                         errors="replace")
+                    if "uvicorn" in content or "FastAPI" in content:
+                        stype = "uvicorn"
+                except Exception:
+                    pass
+
+                if stype == "uvicorn":
+                    # Lancer via uvicorn directement pour plus de controle
+                    # Chercher le nom du module app
+                    app_var = "app"
+                    try:
+                        import re
+                        m = re.search(r'(\w+)\s*=\s*FastAPI', content)
+                        if m:
+                            app_var = m.group(1)
+                    except Exception:
+                        pass
+                    module = script.replace(".py", "")
+                    cmd = [python, "-m", "uvicorn",
+                           f"{module}:{app_var}",
+                           "--host", "0.0.0.0",
+                           "--port", "8000",
+                           "--reload"]
+                else:
+                    cmd = [python, script]
+
+                return {
+                    "type":         stype,
+                    "command":      cmd,
+                    "compose_file": None,
+                    "port":         None,
+                    "info":         f"Script Python detecte: {script} (type={stype})",
+                }
+
         return {
-            "type":    "unknown",
-            "command": [],
-            "port":    None,
-            "info":    "Aucun script de lancement detecte (run_api.py, main.py, docker-compose.yml...)",
+            "type":         "unknown",
+            "command":      [],
+            "compose_file": None,
+            "port":         None,
+            "info":         (
+                "Aucun fichier de lancement detecte. "
+                "Attendu: docker-compose.yml, Dockerfile, run_api.py, main.py..."
+            ),
         }
 
     # ── Start ─────────────────────────────────────────────────────
@@ -228,23 +272,49 @@ class ProcessManager:
         }
 
     def _start_docker(self, app_id: str, install_path: str,
-                      command: list[str], port: int) -> dict:
-        """Lance via docker compose."""
+                      command: list[str], port: int,
+                      appdata_path: str = "") -> dict:
+        """
+        Lance via docker compose.
+        Injecte automatiquement un volume appdata si disponible.
+        """
+        # Creer le dossier appdata si necessaire
+        if appdata_path:
+            Path(appdata_path).mkdir(parents=True, exist_ok=True)
+            logger.info("AppData docker: %s -> /app/data", appdata_path)
+
         try:
+            # Verifier que Docker tourne
+            check = subprocess.run(
+                ["docker", "info"],
+                capture_output=True, timeout=10
+            )
+            if check.returncode != 0:
+                return {"success": False,
+                        "message": "Docker n'est pas en cours d'execution. Lance Docker Desktop."}
+
             result = subprocess.run(
                 command, cwd=str(install_path),
                 capture_output=True, text=True,
-                encoding="utf-8", errors="replace", timeout=120,
+                encoding="utf-8", errors="replace", timeout=180,
             )
+            output = (result.stdout + result.stderr).strip()
             if result.returncode != 0:
                 return {"success": False,
-                        "message": f"docker compose failed: {result.stderr[:300]}"}
+                        "message": f"docker compose failed: {output[:400]}"}
+
             self._register_pid(app_id, -1, port, command)  # -1 = docker managed
-            return {"success": True, "pid": -1, "type": "docker",
-                    "message": f"{app_id} Docker lance"}
+            return {
+                "success": True, "pid": -1, "type": "docker",
+                "command": command,
+                "message": f"{app_id} Docker lance (port {port})",
+                "output":  output[:200],
+            }
         except FileNotFoundError:
             return {"success": False,
-                    "message": "Docker non installe ou pas dans le PATH"}
+                    "message": "Docker non installe. Installe Docker Desktop: https://docs.docker.com/desktop/windows/"}
+        except subprocess.TimeoutExpired:
+            return {"success": False, "message": "Timeout docker compose (>3min)"}
         except Exception as e:
             return {"success": False, "message": str(e)}
 
