@@ -1,15 +1,14 @@
 {
-  "_readme": "Copier en apps.local.json — ignoré par git. Apps gérées par AION AppStore.",
-  "_doc": {
-    "appdata_files": "Déclarés après le premier lancement via le bouton Scan AppData.",
-    "AION_DATA_DIR": "Injecté automatiquement. L'app peut utiliser os.getenv('AION_DATA_DIR').",
-    "DB_PATH": "Pour ProjectMind : DB_PATH pointe vers appdata/ via .env"
+  "_readme": "Copier en apps.local.json (git-ignored). Config de tes apps personnelles.",
+  "_important": {
+    "QuickMind_DB": "config.yaml → database.path controle le chemin. Copier config.yaml dans appdata/ pour persister.",
+    "ProjectMind_DB": "Variable DB_PATH dans .env. Pointer vers C:/AION_APPS/appdata/projectmind/projectmind.db"
   },
   "version": "1.0",
   "apps": {
     "quickmind": {
       "name": "QuickMind",
-      "description": "Gestionnaire de tâches personnel",
+      "description": "Gestionnaire de taches — API FastAPI/uvicorn",
       "type": "fastapi",
       "status": "installed",
       "connector": "aion_core/apps/quickmind/connector.py",
@@ -30,8 +29,8 @@
         "startup_order": 1,
         "health_check": false,
         "env": {
-          "AION_DATA_DIR": "C:\\AION_APPS\\appdata\\quickmind",
-          "AION_APP_ID": "quickmind"
+          "QUICKMIND_HOST": "0.0.0.0",
+          "QUICKMIND_PORT": "8765"
         }
       },
       "store": {
@@ -39,7 +38,8 @@
         "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
         "appdata_files": [
           "data/quickmind.db",
-          "memory.json"
+          "data/attachments",
+          "config.yaml"
         ],
         "github": "beyp/QuickMind",
         "installed_at": "",
@@ -48,8 +48,8 @@
     },
     "projectmind": {
       "name": "ProjectMind",
-      "description": "Gestion de projets avec Gantt, capacity planning — Docker",
-      "type": "docker",
+      "description": "Gestion de projets Gantt/capacity — FastAPI natif",
+      "type": "fastapi",
       "status": "installed",
       "connector": null,
       "url": "http://localhost:8766",
@@ -59,23 +59,17 @@
       "version": "1.0",
       "autostart": {
         "enabled": true,
-        "mode": "docker",
+        "mode": "fastapi",
         "path": "C:\\AION_APPS\\repos\\ProjectMind",
         "command": [
-          "docker",
-          "compose",
-          "-f",
-          "docker-compose.yml",
-          "up",
-          "-d",
-          "--build"
+          "C:\\AION_APPS\\repos\\ProjectMind\\.venv\\Scripts\\python.exe",
+          "main.py"
         ],
         "port": 8766,
         "startup_order": 2,
         "health_check": false,
         "env": {
-          "DB_PATH": "/app/data/projectmind.db",
-          "AION_DATA_DIR": "C:\\AION_APPS\\appdata\\projectmind"
+          "DB_PATH": "C:\\AION_APPS\\appdata\\projectmind\\projectmind.db"
         }
       },
       "store": {
