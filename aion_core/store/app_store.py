@@ -252,10 +252,21 @@ class AppStore:
             "last_update":   today,
             "auto_detected": appdata_files is None,
         }
-        # Mettre a jour autostart.path si present
-        autostart = apps[app_id].get("autostart", {})
-        if autostart.get("mode") or autostart.get("command"):
-            autostart["path"] = str(install_path)
+
+        # Configurer autostart avec la commande auto-detectee
+        from aion_core.store.app_setup import AppSetup
+        _setup    = AppSetup(app_id, str(install_path))
+        _cmd      = _setup.get_launch_command()
+        _autostart = apps[app_id].setdefault("autostart", {})
+        _autostart["enabled"]      = True
+        _autostart["mode"]         = _autostart.get("mode", "fastapi")
+        _autostart["path"]         = str(install_path)
+        _autostart["command"]      = [str(c) for c in _cmd]
+        _autostart["health_check"] = False   # non bloquant
+        if not _autostart.get("port"):
+            _autostart["port"]     = 8765    # port par defaut
+        apps[app_id]["autostart"] = _autostart
+        logger.info("Autostart configure pour %s: %s", app_id, _cmd)
 
         self._save_registry()
 
