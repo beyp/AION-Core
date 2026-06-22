@@ -57,7 +57,7 @@ class AionApp:
         self.brain      = AionBrain()
         self.app_router = AppRouter(self.brain, self.memory)
         self.discovery  = AppDiscovery(self.brain, self.memory)
-        self.launcher   = AppLauncher()
+        self.launcher   = AppLauncher()  # lit apps.json + apps.local.json
 
         logger.info("Composants initialises — Apps: %s",
                     [a["id"] for a in self.discovery.list_apps()])
