@@ -205,25 +205,28 @@ function loadMemoryJson(input) {
 
     showChatMsg("system", "⏳ Import de " + entries.length + " clé(s) depuis " + file.name + "...");
 
-    // Envoyer chaque clé via /api/memory/{key}
-    var promises = entries.map(function(entry) {
-      return fetch("/api/memory/" + encodeURIComponent(entry.key), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: entry.value, type: entry.type })
-      }).then(r => r.json());
-    });
+    // Envoi groupé via /api/memory/import (1 seule requête)
+    var dataPayload = {};
+    entries.forEach(function(e) { dataPayload[e.key] = { value: e.value, type: e.type }; });
 
-    Promise.all(promises).then(function(results) {
-      var ok = results.filter(r => r.ok).length;
+    fetch("/api/memory/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: dataPayload, overwrite: true })
+    })
+    .then(r => r.json())
+    .then(function(result) {
+      var keyList = (result.keys || []).slice(0,8).map(k => "<code>" + k + "</code>").join(", ");
+      var more    = result.imported > 8 ? " +" + (result.imported-8) + " autres" : "";
       showChatMsg("ai",
-        "✅ Memory import terminé !\n" +
-        "📥 " + ok + " / " + entries.length + " clés importées depuis <strong>" + file.name + "</strong>\n" +
-        "Clés : " + entries.slice(0,8).map(e => "<code>" + e.key + "</code>").join(", ") +
-        (entries.length > 8 ? " +" + (entries.length-8) + " autres" : "")
+        "✅ <strong>Memory import terminé !</strong><br>" +
+        "📥 " + result.imported + " clé(s) importée(s) depuis <strong>" + file.name + "</strong><br>" +
+        (result.skipped > 0 ? "⏭ " + result.skipped + " clé(s) ignorée(s)<br>" : "") +
+        "Clés : " + keyList + more
       );
       input.value = "";
-    }).catch(function(err) {
+    })
+    .catch(function(err) {
       showChatMsg("error", "❌ Erreur import : " + err);
     });
   };
