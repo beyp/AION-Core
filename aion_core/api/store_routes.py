@@ -163,8 +163,14 @@ def register_store_routes(app, aion_app):
             from aion_core.discovery.launcher import AppLauncher
             from aion_core.store.app_setup import AppSetup
 
-            reg_file = Path("apps.json")
-            registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+            # Fusionner apps.json (built-in) + apps.local.json (perso)
+            registry = {"apps": {}}
+            for _rf in [Path("apps.json"), Path("apps.local.json")]:
+                if _rf.exists():
+                    try:
+                        registry["apps"].update(json.loads(_rf.read_text(encoding="utf-8")).get("apps", {}))
+                    except Exception:
+                        pass
             app_cfg  = registry.get("apps", {}).get(app_id, {})
             if not app_cfg:
                 return {"success": False, "message": f"App '{app_id}' introuvable"}
@@ -200,8 +206,14 @@ def register_store_routes(app, aion_app):
         try:
             import json, subprocess
             from pathlib import Path
-            reg_file = Path("apps.json")
-            registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+            # Fusionner apps.json (built-in) + apps.local.json (perso)
+            registry = {"apps": {}}
+            for _rf in [Path("apps.json"), Path("apps.local.json")]:
+                if _rf.exists():
+                    try:
+                        registry["apps"].update(json.loads(_rf.read_text(encoding="utf-8")).get("apps", {}))
+                    except Exception:
+                        pass
             app_cfg  = registry.get("apps", {}).get(app_id, {})
             port     = app_cfg.get("autostart", {}).get("port", 0)
             if not port:
@@ -228,8 +240,14 @@ def register_store_routes(app, aion_app):
         try:
             import json, requests as _req
             from pathlib import Path
-            reg_file = Path("apps.json")
-            registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+            # Fusionner apps.json (built-in) + apps.local.json (perso)
+            registry = {"apps": {}}
+            for _rf in [Path("apps.json"), Path("apps.local.json")]:
+                if _rf.exists():
+                    try:
+                        registry["apps"].update(json.loads(_rf.read_text(encoding="utf-8")).get("apps", {}))
+                    except Exception:
+                        pass
             app_cfg  = registry.get("apps", {}).get(app_id, {})
             url      = app_cfg.get("url", "")
             health   = app_cfg.get("health_endpoint", "/health")
