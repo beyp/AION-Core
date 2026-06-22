@@ -230,7 +230,6 @@ header h1{{color:var(--accent);font-size:1.2rem;font-weight:700;}}
     <div class="sb-sec">AION</div>
     <a href="/store" class="nav-item"><span class="nav-icon">🏪</span><span class="nav-label">App Store</span></a>
     <a href="/memory" class="nav-item"><span class="nav-icon">🧠</span><span class="nav-label">Memory</span></a>
-    <a href="/apps" class="nav-item"><span class="nav-icon">📦</span><span class="nav-label">Registry</span></a>
     <a href="/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-label">Settings</span></a>
   </nav>
   <main class="main">
