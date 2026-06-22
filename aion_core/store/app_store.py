@@ -360,8 +360,10 @@ class AppStore:
                 try:
                     import subprocess
                     proc = subprocess.run(["netstat", "-ano"],
-                                         capture_output=True, text=True)
-                    for line in proc.stdout.splitlines():
+                                         capture_output=True, text=True,
+                                         encoding="utf-8", errors="replace")
+                    stdout = proc.stdout or ""
+                    for line in stdout.splitlines():
                         if f":{port} " in line and "LISTENING" in line:
                             parts = line.split()
                             if parts:
