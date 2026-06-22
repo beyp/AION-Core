@@ -1,105 +1,11 @@
 {
   "version": "1.0",
-  "description": "AION-Core App Registry",
+  "description": "AION-Core built-in apps registry. DO NOT add personal apps here — use apps.local.json instead.",
+  "note": "Personal apps (installed via AppStore) are stored in apps.local.json (git-ignored).",
   "apps": {
-    "quickmind": {
-      "name": "QuickMind",
-      "description": "Gestionnaire de taches personnel",
-      "type": "fastapi",
-      "status": "active",
-      "connector": "aion_core/apps/quickmind/connector.py",
-      "url": "http://localhost:8765",
-      "health_endpoint": "/health",
-      "github": "beyp/QuickMind",
-      "docker_image": null,
-      "web_ui": "/app/quickmind",
-      "icon": "check",
-      "version": "1.0",
-      "autostart": {
-        "enabled": true,
-        "mode": "fastapi",
-        "path": "C:\\AION_APPS\\repos\\QuickMind",
-        "command": [
-          "C:\\AION_APPS\\repos\\QuickMind\\.venv\\Scripts\\python.exe",
-          "run_api.py"
-        ],
-        "port": 8765,
-        "startup_order": 1,
-        "health_check": false,
-        "health_timeout_seconds": 60,
-        "env": {}
-      },
-      "store": {
-        "install_path": "C:\\AION_APPS\\repos\\QuickMind",
-        "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
-        "appdata_files": [
-          "memory.json"
-        ],
-        "github": "beyp/QuickMind",
-        "installed_at": "",
-        "last_update": ""
-      }
-    },
-    "ado": {
-      "name": "Azure DevOps",
-      "description": "Gestion des work items Azure DevOps",
-      "type": "api_external",
-      "status": "active",
-      "connector": "aion_core/apps/ado/connector.py",
-      "url": "https://dev.azure.com",
-      "github": null,
-      "docker_image": null,
-      "web_ui": "/app/ado",
-      "icon": "circle",
-      "version": "1.0",
-      "autostart": {
-        "enabled": false
-      }
-    },
-    "projectmind": {
-      "name": "ProjectMind",
-      "description": "Gestion de projets avec Gantt, capacity planning, weekly status",
-      "type": "fastapi",
-      "status": "pending",
-      "connector": null,
-      "url": "http://localhost:8766",
-      "health_endpoint": "/api/projects",
-      "github": "beyp/ProjectMind",
-      "docker_image": null,
-      "web_ui": "/app/projectmind",
-      "icon": "clipboard",
-      "version": "0.1",
-      "autostart": {
-        "enabled": false,
-        "mode": "fastapi",
-        "path": "C:\\AION_APPS\\repos\\ProjectMind",
-        "command": [
-          "uvicorn",
-          "main:app",
-          "--host",
-          "0.0.0.0",
-          "--port",
-          "8766"
-        ],
-        "port": 8766,
-        "startup_order": 2,
-        "health_check": true,
-        "health_timeout_seconds": 20
-      },
-      "store": {
-        "install_path": "C:\\AION_APPS\\repos\\ProjectMind",
-        "appdata_path": "C:\\AION_APPS\\appdata\\projectmind",
-        "appdata_files": [
-          "projectmind.db"
-        ],
-        "github": "beyp/ProjectMind",
-        "installed_at": "",
-        "last_update": ""
-      }
-    },
     "system": {
       "name": "System Monitor",
-      "description": "Surveillance CPU, RAM, disques, reseau",
+      "description": "CPU, RAM, disques, reseau, uptime",
       "type": "local",
       "status": "active",
       "connector": "aion_core/apps/system/connector.py",
@@ -112,7 +18,7 @@
     },
     "timer": {
       "name": "Timer",
-      "description": "Compte a rebours avec notification et bip",
+      "description": "Compte a rebours avec notification",
       "type": "local",
       "status": "active",
       "connector": "aion_core/apps/timer/connector.py",
@@ -125,10 +31,10 @@
     }
   },
   "app_types": {
-    "fastapi": "Service FastAPI/uvicorn lance par AION au demarrage",
-    "docker": "Container Docker lance par AION au demarrage",
+    "fastapi": "Service FastAPI/uvicorn lance par AION",
+    "docker": "Container Docker lance par AION",
     "api_external": "API externe (cloud), pas de demarrage local",
-    "local": "Module Python integre directement",
+    "local": "Module Python integre directement dans AION",
     "desktop": "Application desktop (Tkinter etc.)"
   }
 }
