@@ -286,40 +286,53 @@ class AionUpdater:
 
     def _restart_aion(self) -> None:
         """
-        Redemarre AION-Core proprement.
-        Strategies selon la plateforme :
-        - Windows : startaion.bat en nouveau processus, puis sys.exit()
-        - Linux   : re-exec le process Python
+        Redemarre AION-Core dans la MEME console.
+
+        Windows : os.execv() remplace le process courant par python main.py
+                  → meme fenetre, meme PID de console, clear avant affichage
+        Linux   : identique avec os.execv()
+
+        os.execv() est la cle : il remplace le process en cours sans
+        ouvrir de nouvelle fenetre, la console reste la meme.
         """
-        logger.info("=== REDEMARRAGE AION-CORE ===")
+        # Clear console + banniere de redemarrage
+        os.system("cls" if sys.platform == "win32" else "clear")
+        print("\n" + "=" * 50)
+        print("  🔄 AION-Core — Redemarrage apres mise a jour")
+        print("=" * 50 + "\n")
+
+        logger.info("=== REDEMARRAGE AION-CORE (meme console) ===")
+
+        # Trouver le bon executable Python (venv si present)
+        venv_python = self.repo_path / ".venv" / "Scripts" / "python.exe"
+        if venv_python.exists():
+            python_exe = str(venv_python)
+        else:
+            python_exe = sys.executable
+
+        main_py = str(self.repo_path / "main.py")
+
         try:
             if sys.platform == "win32":
-                bat = self.repo_path / "startaion.bat"
-                if bat.exists():
-                    # Lancer startaion.bat dans une nouvelle fenetre
-                    subprocess.Popen(
-                        ["cmd", "/c", "start", "", str(bat)],
-                        creationflags=subprocess.CREATE_NEW_CONSOLE,
-                        close_fds=True
-                    )
-                    logger.info("startaion.bat lance dans une nouvelle fenetre")
-                else:
-                    # Fallback : re-exec Python directement
-                    subprocess.Popen(
-                        [sys.executable, "main.py"],
-                        cwd=str(self.repo_path),
-                        creationflags=subprocess.CREATE_NEW_CONSOLE,
-                    )
+                # Windows : os.execv remplace le process courant
+                # → meme console, meme fenetre, pas de nouvelle cmd
+                os.execv(python_exe, [python_exe, main_py])
             else:
-                # Linux/Mac : re-exec
-                os.execv(sys.executable, [sys.executable, "main.py"])
+                # Linux / Mac : identique
+                os.execv(python_exe, [python_exe, main_py])
 
         except Exception as e:
-            logger.error("Erreur restart: %s", e)
-        finally:
-            # Quitter le process actuel
-            time.sleep(1)
-            os._exit(0)
+            logger.error("os.execv echoue (%s) — fallback subprocess", e)
+            # Fallback : lancer dans la meme console via call() (bloquant)
+            try:
+                subprocess.call(
+                    [python_exe, main_py],
+                    cwd=str(self.repo_path),
+                )
+            except Exception as e2:
+                logger.error("Fallback aussi echoue: %s", e2)
+            finally:
+                os._exit(0)
 
     # ── State persistant ──────────────────────────────────────────
 
