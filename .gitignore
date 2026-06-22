@@ -12,3 +12,6 @@ logs/
 *.zip
 dist/
 build/
+
+# Personal apps registry (git-ignored — use apps.local.json.example as template)
+apps.local.json
