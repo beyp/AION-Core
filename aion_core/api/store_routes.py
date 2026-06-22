@@ -51,19 +51,43 @@ def register_store_routes(app, aion_app):
         """
         Scanne les fichiers persistants d'un repo installe et les sauvegarde.
         Utile apres un premier lancement (data/ cree par l'app au runtime).
+        Liste TOUS les fichiers du repo pour debug si scan vide.
         """
         result = _get_store().scan_appdata(app_id)
-        # Si de nouveaux fichiers sont detectes, les sauvegarder immediatement
-        if result.get("success") and result.get("appdata_files"):
-            store_cfg = _get_store()._get_store_cfg(app_id)
-            if store_cfg and store_cfg.get("install_path"):
-                save_result = _get_store().appdata_mgr.save(
-                    app_id,
-                    store_cfg["install_path"],
-                    result["appdata_files"]
-                )
-                result["saved"] = save_result.get("saved", [])
-                result["missing"] = save_result.get("missing", [])
+        store_cfg = _get_store()._get_store_cfg(app_id)
+
+        if result.get("success"):
+            if result.get("appdata_files"):
+                # Fichiers detectes → sauvegarder immediatement
+                if store_cfg and store_cfg.get("install_path"):
+                    save_result = _get_store().appdata_mgr.save(
+                        app_id,
+                        store_cfg["install_path"],
+                        result["appdata_files"]
+                    )
+                    result["saved"]   = save_result.get("saved", [])
+                    result["missing"] = save_result.get("missing", [])
+            else:
+                # Scan vide → lister ce qui existe dans le dossier pour debug
+                if store_cfg and store_cfg.get("install_path"):
+                    from pathlib import Path as _P
+                    install = _P(store_cfg["install_path"])
+                    all_files = []
+                    if install.exists():
+                        for f in install.rglob("*"):
+                            if f.is_file():
+                                rel = str(f.relative_to(install)).replace("\\", "/")
+                                skip = any(p in rel for p in [".git/",".venv/","__pycache__",
+                                                               "node_modules/",".pyc"])
+                                if not skip:
+                                    all_files.append(rel)
+                    result["all_files_in_repo"] = sorted(all_files)[:50]
+                    result["message"] = (
+                        f"Aucun fichier persistant detecte automatiquement. "
+                        f"{len(all_files)} fichiers trouves dans le repo. "
+                        f"Lance l'app d'abord, puis re-scanne. "
+                        f"Ou declare manuellement avec le bouton Ajouter."
+                    )
         return result
 
     @app.post("/api/store/scan-and-save/{app_id}")
@@ -343,17 +367,48 @@ def register_store_routes(app, aion_app):
                 </div>
                 '''
             else:
-                appdata_html = '''
+                # Suggestions basees sur le nom de l'app
+                _suggestions = [
+                    f"data/{app_id}.db",
+                    f"{app_id}.db",
+                    "memory.json",
+                    "data/database.db",
+                ]
+                _sugg_btns = " ".join(
+                    f'<button onclick="quickAddFile(\'{app_id}\',\'{s}\')" ' +
+                    'style="background:#1e90ff11;border:1px solid #1e90ff33;color:#1e90ff;' +
+                    'padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.72rem;margin:2px;">' +
+                    s + '</button>'
+                    for s in _suggestions
+                )
+                appdata_html = f'''
                 <div style="margin-top:8px;font-size:.8rem;color:#888;">
-                  <span style="color:#f44336;">⚠️</span>
-                  Aucun fichier persistant detecte.
-                  <button onclick="scanAppdata(\'{app_id}\')"
-                    style="margin-left:6px;background:transparent;border:1px solid #2a2d3e;
-                    color:#1e90ff;padding:1px 8px;border-radius:4px;cursor:pointer;font-size:.78rem;">
-                    🔍 Scanner maintenant</button>
+                  <div style="margin-bottom:6px;">
+                    <span style="color:#ff9800;">⚠️</span>
+                    Aucun fichier persistant detecte.
+                    <button onclick="scanAppdata(\'{app_id}\')"
+                      style="margin-left:6px;background:transparent;border:1px solid #2a2d3e;
+                      color:#1e90ff;padding:1px 8px;border-radius:4px;cursor:pointer;font-size:.72rem;">
+                      🔍 Scanner apres lancement</button>
+                  </div>
+                  <div style="margin-bottom:6px;color:#666;font-size:.75rem;">
+                    Suggestions (clic pour ajouter) :
+                    {_sugg_btns}
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <input id="af-input-{app_id}" type="text"
+                      placeholder="Chemin relatif (ex: data/{app_id}.db)"
+                      style="flex:1;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
+                      padding:5px 10px;border-radius:5px;font-size:.8rem;"
+                      onkeydown="if(event.key==='Enter') addAppFile(\'{app_id}\')"
+                      title="Entree pour ajouter">
+                    <button onclick="addAppFile(\'{app_id}\')"
+                      style="background:#ff9800;color:#fff;border:none;padding:5px 12px;
+                      border-radius:5px;cursor:pointer;font-size:.8rem;">➕ Ajouter</button>
+                  </div>
+                  <div id="sr-add-{app_id}" style="font-size:.75rem;margin-top:4px;display:none;"></div>
                 </div>
-                '''
-                appdata_html = appdata_html.replace("{app_id}", app_id)
+                '''  
 
             rows_html += f'''
             <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
