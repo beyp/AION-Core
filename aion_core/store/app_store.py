@@ -164,12 +164,25 @@ class AppStore:
         install_path = self.repos_dir / repo_name
 
         # Deja installe ?
+        # On verifie le dossier ET le status dans apps.json
+        app_status = self._registry.get("apps", {}).get(app_id, {}).get("status", "")
         if install_path.exists():
-            return {
-                "success":      False,
-                "message":      f"'{app_id}' est deja installe dans {install_path}. Utilise update() pour mettre a jour.",
-                "install_path": str(install_path),
-            }
+            if app_status == "uninstalled":
+                # Reinstallation apres uninstall : dossier pas bien supprime -> on nettoie
+                import shutil
+                shutil.rmtree(install_path, ignore_errors=True)
+                logger.info("Nettoyage dossier residuel apres uninstall: %s", install_path)
+            elif app_status in ("active", "installed"):
+                return {
+                    "success":      False,
+                    "message":      f"'{app_id}' est deja installe dans {install_path}. Utilise update() pour mettre a jour.",
+                    "install_path": str(install_path),
+                }
+            else:
+                # Dossier existe mais status inconnu -> on nettoie et on reinstalle
+                import shutil
+                shutil.rmtree(install_path, ignore_errors=True)
+                logger.info("Nettoyage dossier orphelin (status=%s): %s", app_status, install_path)
 
         # git clone
         clone_url = f"https://github.com/{github_repo}.git"
