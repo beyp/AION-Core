@@ -133,8 +133,64 @@ def create_app(aion_app) -> FastAPI:
         return aion_app.app_router.route(body.get("text", ""))
 
     @app.get("/api/apps")
-    async def list_apps():
+    async def api_list_apps():
+        """Liste les apps disponibles dans le router."""
         return {"apps": aion_app.app_router.available_apps}
+
+    @app.get("/api/apps/status", response_class=__import__("fastapi.responses", fromlist=["HTMLResponse"]).HTMLResponse)
+    async def api_apps_status():
+        """
+        Statut live de toutes les apps — appele par le dashboard htmx.
+        Retourne un fragment HTML avec pastilles online/offline.
+        """
+        import json as _json
+        from pathlib import Path as _Path
+        from fastapi.responses import HTMLResponse as _HTMLResponse
+
+        reg_file = _Path("apps.json")
+        registry = _json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+
+        icons = {
+            "check":     "\u2705",
+            "circle":    "\U0001f535",
+            "clipboard": "\U0001f4cb",
+            "monitor":   "\U0001f5a5\ufe0f",
+            "clock":     "\u23f0",
+            "package":   "\U0001f4e6",
+        }
+        rows = []
+        for app_id, cfg in registry.get("apps", {}).items():
+            if cfg.get("status") not in ("active", "installed"):
+                continue
+            url       = cfg.get("url", "")
+            health_ep = cfg.get("health_endpoint", "/health")
+            is_online = False
+            if url:
+                try:
+                    import requests as _req
+                    r = _req.get(url.rstrip("/") + health_ep, timeout=1.5)
+                    is_online = r.status_code < 400
+                except Exception:
+                    pass
+            else:
+                is_online = True  # apps locales (system, timer)
+
+            color    = "var(--green)" if is_online else "var(--red)"
+            status   = "online" if is_online else "offline"
+            icon_key = cfg.get("icon", "package")
+            icon     = icons.get(icon_key, "\U0001f4e6")
+            name     = cfg.get("name", app_id)
+            rows.append(
+                f'<div style="display:flex;align-items:center;gap:10px;padding:7px 0;'
+                f'border-bottom:1px solid var(--border);font-size:.85rem;">'
+                f'<span>{icon}</span>'
+                f'<span style="flex:1;"><a href="/app/{app_id}" style="color:var(--text);text-decoration:none;">{name}</a></span>'
+                f'<span style="color:{color};font-size:.78rem;font-weight:600;">{status}</span>'
+                f'</div>'
+            )
+
+        html = "\n".join(rows) if rows else '<p style="color:var(--dim);font-size:.83rem;">Aucune app active.</p>'
+        return _HTMLResponse(html)
 
     # ── Pages Web statiques ───────────────────────────────────────
 
