@@ -20,13 +20,13 @@
         "mode": "fastapi",
         "path": "C:\\AION_APPS\\repos\\QuickMind",
         "command": [
-          "python",
+          "C:\\AION_APPS\\repos\\QuickMind\\.venv\\Scripts\\python.exe",
           "run_api.py"
         ],
         "port": 8765,
         "startup_order": 1,
         "health_check": true,
-        "health_timeout_seconds": 15,
+        "health_timeout_seconds": 45,
         "env": {}
       },
       "store": {
