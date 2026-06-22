@@ -59,11 +59,25 @@ def register_store_routes(app, aion_app):
         result = store.install(github_repo, app_id=app_id, appdata_files=appdata_files)
 
         if result.get("success"):
+            installed_id = result.get("app_id", (app_id or github_repo.split("/")[-1].lower()))
+
+            # 1. Recharger les apps dans le router
             try:
                 aion_app.app_router.reload_apps()
                 logger.info("Apps rechargees apres installation de %s", github_repo)
             except Exception as e:
                 logger.warning("Reload apps post-install: %s", e)
+
+            # 2. Lancer l'app si autostart est configure (enabled=True)
+            try:
+                from aion_core.discovery.launcher import AppLauncher
+                launcher = AppLauncher()
+                launch_result = launcher.start_app(installed_id)
+                result["launch"] = launch_result
+                logger.info("Lancement post-install %s: %s", installed_id, launch_result)
+            except Exception as e:
+                logger.warning("Lancement post-install %s: %s", installed_id, e)
+                result["launch"] = {"success": False, "message": str(e)}
 
         return result
 
@@ -336,8 +350,11 @@ function doInstall(){{
     var files = d.appdata_files && d.appdata_files.length
       ? "<br>📄 Fichiers detectes : <code style='color:#ccc;'>" + d.appdata_files.join(", ") + "</code>"
       : "<br><span style='color:#888;'>Aucun fichier persistant detecte</span>";
-    res.innerHTML = d.message + files;
-    if(d.success) setTimeout(()=>location.reload(),2000);
+    var launch = d.launch ? (d.launch.success
+      ? "<br>\u25cf App lanc\u00e9e : " + (d.launch.message || "OK")
+      : "<br>\u26a0\ufe0f Lancement auto : " + (d.launch.message || "non configure")) : "";
+    res.innerHTML = d.message + files + launch;
+    if(d.success) setTimeout(()=>location.reload(),2500);
   }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
 }}
 function storeAction(action,id){{
