@@ -25,7 +25,8 @@ from aion_core.store.appdata_manager import AppDataManager
 logger = logging.getLogger(__name__)
 
 AION_APPS_ROOT = Path(os.getenv("AION_APPS_ROOT", r"C:\AION_APPS"))
-REGISTRY_FILE  = Path("apps.json")
+REGISTRY_FILE      = Path("apps.json")        # built-in apps (git-tracked)
+LOCAL_REGISTRY_FILE = Path("apps.local.json")  # personal apps (git-ignored)
 
 # Extensions et noms de fichiers qui doivent etre persistes automatiquement
 PERSISTENT_EXTENSIONS = {".db", ".sqlite", ".sqlite3", ".json", ".env", ".key", ".csv"}
@@ -98,9 +99,10 @@ def _scan_appdata_files(install_path: str) -> list[str]:
 class AppStore:
     """Gestionnaire d'installation des apps AION via GitHub."""
 
-    def __init__(self, registry_path: str = "apps.json", root: str | None = None) -> None:
+    def __init__(self, registry_path: str = "apps.local.json", root: str | None = None) -> None:
         self.root          = Path(root) if root else AION_APPS_ROOT
         self.repos_dir     = self.root / "repos"
+        # AppStore ecrit toujours dans apps.local.json (git-ignored)
         self.registry_path = Path(registry_path)
         self.appdata_mgr   = AppDataManager(root=str(self.root))
         self._registry     = self._load_registry()
@@ -112,13 +114,26 @@ class AppStore:
     # ── Registry / Manifest ───────────────────────────────────────
 
     def _load_registry(self) -> dict:
+        """
+        Charge apps.local.json.
+        Si inexistant, le cree comme copie de apps.local.json.example
+        ou comme registre vide.
+        """
         if self.registry_path.exists():
             try:
                 with open(self.registry_path, encoding="utf-8") as f:
                     return json.load(f)
             except Exception:
                 pass
-        return {"version": "1.0", "apps": {}}
+        # Creer apps.local.json vide si absent
+        empty = {"version": "1.0", "apps": {}}
+        try:
+            with open(self.registry_path, "w", encoding="utf-8") as f:
+                json.dump(empty, f, indent=2, ensure_ascii=False)
+            logger.info("apps.local.json cree (premier demarrage AppStore)")
+        except Exception as e:
+            logger.warning("Impossible de creer apps.local.json: %s", e)
+        return empty
 
     def _save_registry(self) -> None:
         with open(self.registry_path, "w", encoding="utf-8") as f:
