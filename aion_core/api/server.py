@@ -125,6 +125,49 @@ def create_app(aion_app) -> FastAPI:
     async def del_memory(key: str):
         return {"ok": aion_app.memory.forget(key)}
 
+    @app.post("/api/memory/import")
+    async def import_memory(request: Request):
+        """
+        Importe un fichier memory.json complet dans la memoire AION.
+        Supporte 2 formats :
+          - Format AION natif : {"key": {"value": "...", "type": "..."}}
+          - Format simple     : {"key": "valeur"}
+        Body: {"data": {...}, "overwrite": true}
+        """
+        body      = await request.json()
+        raw       = body.get("data", {})
+        overwrite = body.get("overwrite", True)
+        imported  = []
+        skipped   = []
+
+        for key, val in raw.items():
+            # Ignorer les cles systeme
+            if key.startswith("_"):
+                skipped.append(key)
+                continue
+            # Ne pas ecraser si overwrite=False et cle existante
+            if not overwrite and aion_app.memory.recall(key):
+                skipped.append(key)
+                continue
+            # Format natif AION
+            if isinstance(val, dict) and "value" in val:
+                aion_app.memory.remember(key, str(val["value"]), val.get("type", "imported"))
+            # Format simple
+            elif isinstance(val, (str, int, float, bool)):
+                aion_app.memory.remember(key, str(val), "imported")
+            else:
+                skipped.append(key)
+                continue
+            imported.append(key)
+
+        return {
+            "ok":       True,
+            "imported": len(imported),
+            "skipped":  len(skipped),
+            "keys":     imported,
+            "message":  f"{len(imported)} cle(s) importee(s) dans la memoire AION",
+        }
+
     # ── Updater AION-Core ─────────────────────────────────────────
 
     @app.get("/api/update/status")
