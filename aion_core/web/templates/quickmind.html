@@ -79,7 +79,8 @@
 <div class="add-form">
   <form hx-post="/qm/task/add" hx-target="#task-list" hx-swap="innerHTML" hx-on::after-request="this.reset()">
     <div class="form-row">
-      <input name="title" type="text" placeholder="Nouvelle tâche..." required autofocus style="flex:2;">
+      <input name="title" type="text" placeholder="Nouvelle tâche..." required autofocus style="flex:2;"
+             title="Appuie sur Entrée pour ajouter la tâche">
       <select name="priority" style="width:110px;">
         <option value="normal">🔵 Normal</option>
         <option value="urgent">🔴 Urgent</option>
