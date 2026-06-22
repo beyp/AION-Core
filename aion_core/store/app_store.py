@@ -350,10 +350,60 @@ class AppStore:
             self.appdata_mgr.save(app_id, str(install_path), appdata_files)
             self.appdata_mgr.backup(app_id)
 
+        deleted = False
+        delete_error = ""
         if install_path.exists():
-            import shutil
-            shutil.rmtree(install_path, ignore_errors=True)
-            logger.info("Repo supprime: %s", install_path)
+            # 1. Stopper l'app si elle tourne (liberer les fichiers verrouilles)
+            port = self._registry.get("apps", {}).get(app_id, {}) \
+                       .get("autostart", {}).get("port", 0)
+            if port:
+                try:
+                    import subprocess
+                    proc = subprocess.run(["netstat", "-ano"],
+                                         capture_output=True, text=True)
+                    for line in proc.stdout.splitlines():
+                        if f":{port} " in line and "LISTENING" in line:
+                            parts = line.split()
+                            if parts:
+                                subprocess.run(["taskkill", "/PID", parts[-1], "/F"],
+                                               capture_output=True)
+                                logger.info("Process arrete sur port %d avant suppression", port)
+                            break
+                    import time
+                    time.sleep(0.5)  # laisser le temps au process de se terminer
+                except Exception as e:
+                    logger.warning("Stop process avant uninstall: %s", e)
+
+            # 2. Supprimer avec gestion des fichiers read-only Windows (.git)
+            import shutil, stat
+
+            def _remove_readonly(func, path, _):
+                """Handler pour retirer les attributs read-only avant suppression."""
+                try:
+                    import os
+                    os.chmod(path, stat.S_IWRITE)
+                    func(path)
+                except Exception:
+                    pass
+
+            try:
+                shutil.rmtree(str(install_path), onerror=_remove_readonly)
+                if not install_path.exists():
+                    deleted = True
+                    logger.info("Repo supprime: %s", install_path)
+                else:
+                    # Dernier recours : rd /s /q via cmd Windows
+                    import subprocess
+                    result = subprocess.run(
+                        ["cmd", "/c", "rd", "/s", "/q", str(install_path)],
+                        capture_output=True, text=True, timeout=30
+                    )
+                    deleted = not install_path.exists()
+                    if not deleted:
+                        delete_error = result.stderr.strip() or "rd /s /q a echoue"
+            except Exception as e:
+                delete_error = str(e)
+                logger.error("Erreur suppression repo %s: %s", install_path, e)
 
         apps = self._registry.get("apps", {})
         if app_id in apps:
@@ -364,10 +414,21 @@ class AppStore:
         self._manifest.get("installed", {}).pop(app_id, None)
         self._save_manifest()
 
-        msg = f"'{app_id}' desinstalle"
+        if deleted:
+            msg = f"'{app_id}' desinstalle et repertoire supprime"
+        elif delete_error:
+            msg = f"'{app_id}' retire du registre MAIS repertoire non supprime: {delete_error[:100]}"
+        else:
+            msg = f"'{app_id}' desinstalle (repertoire n'existait pas)"
+
         if keep_appdata:
-            msg += f" (appdata conserve dans {self.root / 'appdata' / app_id})"
-        return {"success": True, "message": msg}
+            msg += f" | appdata conserve dans C:\\AION_APPS\\appdata\\{app_id}"
+        return {
+            "success":  True,   # succes registre meme si dossier non supprime
+            "deleted":  deleted,
+            "message":  msg,
+            "warning":  delete_error if delete_error and not deleted else "",
+        }
 
     def restore_appdata(self, app_id: str) -> dict:
         """Restaure les fichiers persistants depuis appdata/ vers le repo."""
