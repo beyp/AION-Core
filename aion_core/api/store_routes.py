@@ -432,7 +432,7 @@ input,code{{font-family:"Cascadia Code",Consolas,monospace;}}
     <p style="color:#888;font-size:.82rem;margin-bottom:20px;">
       Les fichiers persistants (DB, JSON...) sont <strong style="color:#e0e0e0;">detectes automatiquement</strong>
       apres le git clone et sauvegardes dans
-      <code style="color:#4caf50;font-size:.8rem;">C:\AION_APPS\appdata\</code>
+      <code style="color:#4caf50;font-size:.8rem;">C:/AION_APPS/appdata/</code>
       avant chaque mise a jour.</p>
 
     <!-- Installer -->
