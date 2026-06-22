@@ -21,14 +21,16 @@ ICON_MAP = {
 
 
 def _load_registry() -> dict:
-    reg_file = Path("apps.json")
-    if reg_file.exists():
-        try:
-            with open(reg_file, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"apps": {}}
+    """Fusionne apps.json (built-in) + apps.local.json (perso)."""
+    result = {"apps": {}}
+    for reg_file in [Path("apps.json"), Path("apps.local.json")]:
+        if reg_file.exists():
+            try:
+                with open(reg_file, encoding="utf-8") as f:
+                    result["apps"].update(json.load(f).get("apps", {}))
+            except Exception:
+                pass
+    return result
 
 
 def _sidebar_nav(active_id: str, version: str, ai_available: bool) -> str:
