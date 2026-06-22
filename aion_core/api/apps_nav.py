@@ -28,14 +28,23 @@ SYSTEM_APPS = {"system", "timer"}
 
 
 def _load_registry() -> dict:
-    reg_file = Path("apps.json")
-    if reg_file.exists():
-        try:
-            with open(reg_file, encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {"apps": {}}
+    """
+    Fusionne apps.json (built-in, git) et apps.local.json (perso, git-ignore).
+    apps.local.json a priorite sur apps.json pour les cles en double.
+    """
+    result = {"apps": {}}
+
+    # 1. Charger les apps built-in
+    for reg_file in [Path("apps.json"), Path("apps.local.json")]:
+        if reg_file.exists():
+            try:
+                with open(reg_file, encoding="utf-8") as f:
+                    data = json.load(f)
+                result["apps"].update(data.get("apps", {}))
+            except Exception:
+                pass
+
+    return result
 
 
 def register_nav_routes(app, aion_app):
