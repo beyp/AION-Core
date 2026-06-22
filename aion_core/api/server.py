@@ -277,8 +277,46 @@ def create_app(aion_app) -> FastAPI:
 
     @app.post("/api/route")
     async def route_request(request: Request):
-        body = await request.json()
-        return aion_app.app_router.route(body.get("text", ""))
+        """
+        Route une requete texte vers la bonne app.
+        Detecte automatiquement les JSON colles dans le texte
+        pour faciliter l'import memoire via le chat.
+        """
+        import re as _re, json as _json
+        body     = await request.json()
+        text     = body.get("text", "")
+        img_b64  = body.get("image_data")
+        img_mime = body.get("image_mime", "image/jpeg")
+
+        # Detection JSON dans le texte -> import memoire direct
+        import_keywords = ["import", "importe", "memoire", "memory",
+                           "charger", "ajouter ces", "mets dans", "enregistre", "cles"]
+        json_in_text = None
+        if text and "{" in text:
+            m = _re.search(r'\{.+\}', text, _re.DOTALL)
+            if m:
+                try:
+                    json_in_text = _json.loads(m.group(0))
+                except Exception:
+                    pass
+
+        if json_in_text and any(kw in text.lower() for kw in import_keywords):
+            import_result = aion_app.app_router._handle_memory(
+                "import_json", {"data": json_in_text}
+            )
+            return {
+                "app":      "memory",
+                "action":   "import_json",
+                "params":   {},
+                "result":   import_result,
+                "response": import_result,
+            }
+
+        return aion_app.app_router.route(
+            text       = text,
+            image_b64  = img_b64,
+            image_mime = img_mime,
+        )
 
     @app.get("/api/apps")
     async def api_list_apps():
