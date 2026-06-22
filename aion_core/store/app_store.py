@@ -96,6 +96,62 @@ def _scan_appdata_files(install_path: str) -> list[str]:
     return sorted(found)
 
 
+def _force_remove(path) -> tuple[bool, str]:
+    """
+    Supprime un dossier de maniere robuste sur Windows.
+    Gere les fichiers read-only (.git/objects/...) et les processus qui tiennent des fichiers.
+
+    Strategie :
+    1. shutil.rmtree avec handler onerror (retire les attributs read-only)
+    2. Si echec -> rd /s /q (commande Windows native)
+    3. Verifier que le dossier n'existe plus
+
+    Returns:
+        (success: bool, error_message: str)
+    """
+    import shutil
+    import stat
+    import subprocess
+    from pathlib import Path
+
+    p = Path(path)
+    if not p.exists():
+        return True, ""
+
+    def _remove_readonly(func, fpath, _):
+        """Retire les attributs read-only avant suppression."""
+        try:
+            import os
+            os.chmod(fpath, stat.S_IWRITE | stat.S_IREAD)
+            func(fpath)
+        except Exception:
+            pass
+
+    # Tentative 1 : shutil.rmtree avec onerror
+    try:
+        shutil.rmtree(str(p), onerror=_remove_readonly)
+    except Exception:
+        pass
+
+    if not p.exists():
+        return True, ""
+
+    # Tentative 2 : rd /s /q (force Windows)
+    try:
+        result = subprocess.run(
+            ["cmd", "/c", "rd", "/s", "/q", str(p)],
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            timeout=30
+        )
+        if not p.exists():
+            return True, ""
+        err = result.stderr.strip() or result.stdout.strip() or "rd /s /q a echoue"
+        return False, err
+    except Exception as e:
+        return False, str(e)
+
+
 class AppStore:
     """Gestionnaire d'installation des apps AION via GitHub."""
 
@@ -179,25 +235,26 @@ class AppStore:
         install_path = self.repos_dir / repo_name
 
         # Deja installe ?
-        # On verifie le dossier ET le status dans apps.json
+        # On verifie le dossier ET le status dans apps.local.json
         app_status = self._registry.get("apps", {}).get(app_id, {}).get("status", "")
         if install_path.exists():
-            if app_status == "uninstalled":
-                # Reinstallation apres uninstall : dossier pas bien supprime -> on nettoie
-                import shutil
-                shutil.rmtree(install_path, ignore_errors=True)
-                logger.info("Nettoyage dossier residuel apres uninstall: %s", install_path)
-            elif app_status in ("active", "installed"):
+            if app_status in ("active", "installed"):
                 return {
                     "success":      False,
                     "message":      f"'{app_id}' est deja installe dans {install_path}. Utilise update() pour mettre a jour.",
                     "install_path": str(install_path),
                 }
             else:
-                # Dossier existe mais status inconnu -> on nettoie et on reinstalle
-                import shutil
-                shutil.rmtree(install_path, ignore_errors=True)
-                logger.info("Nettoyage dossier orphelin (status=%s): %s", app_status, install_path)
+                # status == "uninstalled" ou inconnu : dossier residuel -> on force la suppression
+                logger.info("Nettoyage dossier residuel (status=%r): %s", app_status, install_path)
+                ok, err = _force_remove(install_path)
+                if not ok:
+                    return {
+                        "success": False,
+                        "message": f"Impossible de supprimer le dossier residuel {install_path}: {err}. "
+                                   f"Supprime-le manuellement avec: rd /s /q "{install_path}"",
+                    }
+                logger.info("Dossier residuel supprime: %s", install_path)
 
         # git clone
         clone_url = f"https://github.com/{github_repo}.git"
@@ -394,12 +451,11 @@ class AppStore:
                        .get("autostart", {}).get("port", 0)
             if port:
                 try:
-                    import subprocess
+                    import subprocess, time
                     proc = subprocess.run(["netstat", "-ano"],
                                          capture_output=True, text=True,
                                          encoding="utf-8", errors="replace")
-                    stdout = proc.stdout or ""
-                    for line in stdout.splitlines():
+                    for line in (proc.stdout or "").splitlines():
                         if f":{port} " in line and "LISTENING" in line:
                             parts = line.split()
                             if parts:
@@ -407,41 +463,16 @@ class AppStore:
                                                capture_output=True)
                                 logger.info("Process arrete sur port %d avant suppression", port)
                             break
-                    import time
-                    time.sleep(0.5)  # laisser le temps au process de se terminer
+                    time.sleep(1)  # laisser le temps au process de se terminer
                 except Exception as e:
                     logger.warning("Stop process avant uninstall: %s", e)
 
-            # 2. Supprimer avec gestion des fichiers read-only Windows (.git)
-            import shutil, stat
-
-            def _remove_readonly(func, path, _):
-                """Handler pour retirer les attributs read-only avant suppression."""
-                try:
-                    import os
-                    os.chmod(path, stat.S_IWRITE)
-                    func(path)
-                except Exception:
-                    pass
-
-            try:
-                shutil.rmtree(str(install_path), onerror=_remove_readonly)
-                if not install_path.exists():
-                    deleted = True
-                    logger.info("Repo supprime: %s", install_path)
-                else:
-                    # Dernier recours : rd /s /q via cmd Windows
-                    import subprocess
-                    result = subprocess.run(
-                        ["cmd", "/c", "rd", "/s", "/q", str(install_path)],
-                        capture_output=True, text=True, timeout=30
-                    )
-                    deleted = not install_path.exists()
-                    if not deleted:
-                        delete_error = result.stderr.strip() or "rd /s /q a echoue"
-            except Exception as e:
-                delete_error = str(e)
-                logger.error("Erreur suppression repo %s: %s", install_path, e)
+            # 2. Supprimer avec _force_remove (gere read-only + rd /s /q)
+            deleted, delete_error = _force_remove(install_path)
+            if deleted:
+                logger.info("Repo supprime: %s", install_path)
+            else:
+                logger.error("Echec suppression repo %s: %s", install_path, delete_error)
 
         apps = self._registry.get("apps", {})
         if app_id in apps:
