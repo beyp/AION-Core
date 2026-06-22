@@ -4,7 +4,7 @@ AppStore -- Gestionnaire d'installation et de mise a jour des apps AION.
 C:/AION_APPS/
   repos/<AppName>/      <- git clone
   appdata/<app_id>/     <- fichiers persistants (memory.json, *.db, *.sqlite...)
-  backups\               <- zips horodates avant chaque update
+  backups/               <- zips horodates avant chaque update
   .aion/apps_store.json  <- manifest local
 
 Usage :
