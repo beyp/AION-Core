@@ -206,9 +206,11 @@ def register_store_routes(app, aion_app):
             port     = app_cfg.get("autostart", {}).get("port", 0)
             if not port:
                 return {"success": False, "message": "Port non configure"}
-            proc = subprocess.run(["netstat", "-ano"], capture_output=True, text=True)
+            proc = subprocess.run(["netstat", "-ano"], capture_output=True, text=True,
+                                     encoding="utf-8", errors="replace")
             pid = None
-            for line in proc.stdout.splitlines():
+            stdout = proc.stdout or ""
+            for line in stdout.splitlines():
                 if f":{port} " in line and "LISTENING" in line:
                     parts = line.split()
                     if parts: pid = parts[-1]
