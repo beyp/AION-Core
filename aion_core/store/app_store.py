@@ -251,9 +251,12 @@ class AppStore:
                 if not ok:
                     return {
                         "success": False,
-                        "message": f"Impossible de supprimer le dossier residuel {install_path}: {err}. "
-                                   f"Supprime-le manuellement avec: rd /s /q "{install_path}"",
-                    }
+                if not ok:
+                    _err_msg = (
+                        f"Impossible de supprimer {install_path}: {err}. "
+                        f"Supprime manuellement: cmd /c rd /s /q {install_path}"
+                    )
+                    return {"success": False, "message": _err_msg}
                 logger.info("Dossier residuel supprime: %s", install_path)
 
         # git clone
