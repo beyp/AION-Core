@@ -113,41 +113,80 @@ def register_store_routes(app, aion_app):
     @app.post("/api/store/install")
     async def store_install(request: Request):
         """
-        Installe une app depuis GitHub.
-        Body: {"github":"owner/repo", "app_id":"...", "appdata_files":[...]}
-        Si appdata_files est absent ou vide -> scan automatique apres clone.
+        Installe une app depuis GitHub puis la lance automatiquement.
+        Body: {
+            "github":       "owner/repo",
+            "app_id":       "...",           (optionnel)
+            "appdata_files": [...],          (optionnel - scan auto si absent)
+            "port":         8765,            (optionnel)
+            "app_type":     "auto",          (auto|fastapi|docker|python)
+        }
         """
+        from aion_core.store.process_manager import ProcessManager
         body          = await request.json()
         github_repo   = body.get("github", "")
         app_id        = body.get("app_id") or None
-        appdata_files = body.get("appdata_files") or None  # None = scan auto
+        appdata_files = body.get("appdata_files") or None
+        port          = int(body.get("port", 0))
+        app_type      = body.get("app_type", "auto")
 
         if not github_repo:
             return JSONResponse({"success": False,
                 "message": "github requis (ex: beyp/QuickMind)"}, status_code=400)
 
-        result = _get_store().install(github_repo, app_id=app_id, appdata_files=appdata_files)
+        # 1. Clone + setup (venv, pip, bat)
+        result = _get_store().install(github_repo, app_id=app_id,
+                                      appdata_files=appdata_files)
+        if not result.get("success"):
+            return result
 
-        if result.get("success"):
-            installed_id = result.get("app_id", (app_id or github_repo.split("/")[-1].lower()))
+        installed_id = result.get("app_id", app_id or
+                                  github_repo.split("/")[-1].lower())
+        install_path = result.get("install_path", "")
 
-            # 1. Recharger les apps dans le router
-            try:
-                aion_app.app_router.reload_apps()
-                logger.info("Apps rechargees apres installation de %s", github_repo)
-            except Exception as e:
-                logger.warning("Reload apps post-install: %s", e)
+        # 2. Recharger le router
+        try:
+            aion_app.app_router.reload_apps()
+        except Exception as e:
+            logger.warning("Reload apps: %s", e)
 
-            # 2. Lancer l'app si autostart est configure (enabled=True)
-            try:
-                from aion_core.discovery.launcher import AppLauncher
-                launcher = AppLauncher()
-                launch_result = launcher.start_app(installed_id)
-                result["launch"] = launch_result
-                logger.info("Lancement post-install %s: %s", installed_id, launch_result)
-            except Exception as e:
-                logger.warning("Lancement post-install %s: %s", installed_id, e)
-                result["launch"] = {"success": False, "message": str(e)}
+        # 3. Auto-detect type + lancement via ProcessManager
+        pm = ProcessManager()
+        detected = pm.detect_launch_type(install_path)
+        result["detected_type"] = detected["type"]
+        result["detected_cmd"]  = detected["command"]
+        result["detected_info"] = detected["info"]
+
+        # Determiner le port depuis apps.local.json si non fourni
+        if not port:
+            import json as _json
+            from pathlib import Path as _P
+            for rf in [_P("apps.local.json"), _P("apps.json")]:
+                if rf.exists():
+                    try:
+                        reg = _json.loads(rf.read_text(encoding="utf-8"))
+                        port = (reg.get("apps", {}).get(installed_id, {})
+                                   .get("autostart", {}).get("port", 0))
+                        if port: break
+                    except Exception:
+                        pass
+
+        # Preparer env avec AION_DATA_DIR
+        env = {
+            "AION_DATA_DIR":  str(_P("C:/AION_APPS/appdata") / installed_id),
+            "AION_APP_ID":    installed_id,
+        }
+
+        launch_result = pm.start(
+            app_id       = installed_id,
+            install_path = install_path,
+            app_type     = app_type if app_type != "auto" else detected["type"],
+            command      = detected["command"] if detected["type"] != "unknown" else None,
+            port         = port,
+            env          = env,
+        )
+        result["launch"] = launch_result
+        logger.info("Post-install launch %s: %s", installed_id, launch_result)
 
         return result
 
@@ -191,46 +230,64 @@ def register_store_routes(app, aion_app):
 
     @app.post("/api/store/start/{app_id}")
     async def store_start(app_id: str):
-        """Lance une app (bouton Start dans /store)."""
-        try:
-            from pathlib import Path
-            from aion_core.discovery.launcher import AppLauncher, _merge_registries, _detect_launch_command
+        """
+        Lance une app via ProcessManager (bouton Start dans /store ou commande IA).
+        Detecte automatiquement le type (fastapi/docker/python) et la commande.
+        """
+        from pathlib import Path as _P
+        from aion_core.store.process_manager import ProcessManager
+        import json as _json
 
-            # Charger le registre fusionne
-            registry = _merge_registries()
-            app_cfg  = registry.get("apps", {}).get(app_id, {})
-            if not app_cfg:
-                return {"success": False, "message": f"App '{app_id}' introuvable dans apps.json / apps.local.json"}
+        # Lire la config de l'app
+        registry = {}
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    data = _json.loads(rf.read_text(encoding="utf-8"))
+                    for k, v in data.get("apps", {}).items():
+                        registry.setdefault(k, v)
+                except Exception:
+                    pass
 
-            autostart    = app_cfg.get("autostart", {})
-            store_cfg    = app_cfg.get("store", {})
-            install_path = store_cfg.get("install_path", "") or autostart.get("path", "")
+        app_cfg = registry.get(app_id)
+        if not app_cfg:
+            return {"success": False,
+                    "message": f"App '{app_id}' introuvable. Installe-la via /store."}
 
-            # Forcer enabled=True et configurer le path
-            autostart["enabled"] = True
-            if install_path:
-                autostart["path"] = install_path
+        store_cfg    = app_cfg.get("store", {})
+        autostart    = app_cfg.get("autostart", {})
+        install_path = (store_cfg.get("install_path") or
+                        autostart.get("path") or "")
 
-            # Auto-detecter la commande si absente ou invalide
-            cmd = autostart.get("command", [])
-            if not cmd or (cmd and not Path(cmd[0]).exists()):
-                if install_path:
-                    detected = _detect_launch_command(install_path)
-                    if detected:
-                        autostart["command"] = [str(c) for c in detected]
-                        logger.info("Commande detectee pour %s: %s", app_id, detected)
+        if not install_path or not _P(install_path).exists():
+            return {"success": False,
+                    "message": f"Dossier non trouve: {install_path!r}. "
+                               f"Reinstalle l'app via /store."}
 
-            autostart["mode"]         = autostart.get("mode", "fastapi")
-            autostart["health_check"] = False
-            app_cfg["autostart"]      = autostart
-            registry["apps"][app_id]  = app_cfg
+        port = int(autostart.get("port", 0) or
+                   app_cfg.get("port", 0) or 0)
 
-            launcher = AppLauncher()
-            launcher._registry = registry
-            return launcher.start_app(app_id)
-        except Exception as e:
-            logger.error("Store start %s: %s", app_id, e)
-            return {"success": False, "message": str(e)}
+        env = {
+            "AION_DATA_DIR": str(_P("C:/AION_APPS/appdata") / app_id),
+            "AION_APP_ID":   app_id,
+        }
+        env.update(autostart.get("env", {}))
+
+        pm = ProcessManager()
+        # Commande explicite si configuree et valide
+        cmd = autostart.get("command", [])
+        explicit_cmd = cmd if (cmd and _P(cmd[0]).exists()) else None
+
+        result = pm.start(
+            app_id       = app_id,
+            install_path = install_path,
+            app_type     = autostart.get("mode", "auto"),
+            command      = explicit_cmd,
+            port         = port,
+            env          = env,
+        )
+        logger.info("Start %s: %s", app_id, result.get("message"))
+        return result
 
     @app.post("/api/store/stop/{app_id}")
     async def store_stop(app_id: str):
