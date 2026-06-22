@@ -57,7 +57,7 @@ def register_store_routes(app, aion_app):
         if result.get("success") and result.get("appdata_files"):
             store_cfg = _get_store()._get_store_cfg(app_id)
             if store_cfg and store_cfg.get("install_path"):
-                save_result = store.appdata_mgr.save(
+                save_result = _get_store().appdata_mgr.save(
                     app_id,
                     store_cfg["install_path"],
                     result["appdata_files"]
@@ -76,7 +76,7 @@ def register_store_routes(app, aion_app):
         if result.get("success") and result.get("appdata_files"):
             store_cfg = _get_store()._get_store_cfg(app_id)
             if store_cfg and store_cfg.get("install_path"):
-                save_result = store.appdata_mgr.save(
+                save_result = _get_store().appdata_mgr.save(
                     app_id,
                     store_cfg["install_path"],
                     result["appdata_files"]
