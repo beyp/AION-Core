@@ -554,9 +554,9 @@ input,code{{font-family:"Cascadia Code",Consolas,monospace;}}
 
     <!-- Installer -->
     <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;padding:16px;margin-bottom:20px;">
-      <div style="font-weight:600;margin-bottom:12px;color:#1e90ff;">➕ Installer une nouvelle app</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-        <div style="flex:1;min-width:200px;">
+      <div style="font-weight:600;margin-bottom:12px;color:#1e90ff;">&#x2795; Installer une nouvelle app</div>
+      <div style="display:grid;grid-template-columns:1fr 110px 155px auto;gap:8px;align-items:end;">
+        <div>
           <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Repo GitHub</label>
           <input id="inst-repo" type="text" placeholder="owner/repo  (ex: beyp/QuickMind)"
             style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
@@ -564,19 +564,35 @@ input,code{{font-family:"Cascadia Code",Consolas,monospace;}}
             onkeydown="if(event.key==='Enter') doInstall()"
             title="Entree pour installer">
         </div>
-        <div style="flex-shrink:0;">
+        <div>
+          <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Port</label>
+          <input id="inst-port" type="number" placeholder="ex: 8765"
+            style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
+            padding:9px 10px;border-radius:6px;font-size:.85rem;">
+        </div>
+        <div>
+          <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Type</label>
+          <select id="inst-type"
+            style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
+            padding:9px 8px;border-radius:6px;font-size:.82rem;">
+            <option value="auto">&#x1F50D; Auto-detect</option>
+            <option value="docker">&#x1F433; Docker Compose</option>
+            <option value="uvicorn">&#x26A1; Uvicorn/FastAPI</option>
+            <option value="python">&#x1F40D; Python script</option>
+          </select>
+        </div>
+        <div>
           <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">&nbsp;</label>
           <button onclick="doInstall()"
-            style="background:#1e90ff;color:#fff;border:none;padding:9px 20px;
+            style="background:#1e90ff;color:#fff;border:none;padding:9px 16px;
             border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:600;white-space:nowrap;">
-            📥 Installer (scan auto)
+            &#x1F4E5; Installer
           </button>
         </div>
       </div>
-      <p style="font-size:.75rem;color:#555;margin-top:8px;">
-        💡 Les fichiers <code style="color:#888;">.db .sqlite .env memory.json config.json</code>
-        et les dossiers <code style="color:#888;">data/ db/ storage/</code>
-        seront detectes automatiquement.</p>
+      <p style="font-size:.73rem;color:#555;margin-top:6px;">
+        &#x1F4A1; <strong>Auto-detect</strong> : priorite docker-compose.yml, puis run_api.py, main.py.
+        DB detectee apres 1er lancement via <strong>Scan AppData</strong>.</p>
       <div id="inst-result" style="margin-top:10px;font-size:.82rem;display:none;padding:8px 12px;border-radius:6px;"></div>
     </div>
 
@@ -595,26 +611,37 @@ document.addEventListener("htmx:afterSwap",function(e){{
   }}
 }});
 function doInstall(){{
-  var repo=document.getElementById("inst-repo").value.trim();
-  var res=document.getElementById("inst-result");
-  if(!repo) return;
+  var repo  = document.getElementById("inst-repo").value.trim();
+  var port  = parseInt(document.getElementById("inst-port").value) || 0;
+  var atype = document.getElementById("inst-type").value;
+  var res   = document.getElementById("inst-result");
+  if(!repo){{ alert("Saisis un repo GitHub (ex: beyp/QuickMind)"); return; }}
   res.style.display="block"; res.style.background="rgba(255,152,0,.1)";
-  res.style.color="#ff9800"; res.innerHTML="⏳ git clone en cours... (peut prendre 10-30 sec)";
+  res.style.color="#ff9800";
+  res.innerHTML="&#x23F3; Installation... git clone + setup (venv ou docker build) peut prendre 1-5 min";
   fetch("/api/store/install",{{method:"POST",headers:{{"Content-Type":"application/json"}},
-    body:JSON.stringify({{github:repo}})}})
-  .then(r=>r.json()).then(d=>{{
+    body:JSON.stringify({{github:repo,port:port,app_type:atype}})}})
+  .then(function(r){{return r.json();}})
+  .then(function(d){{
     res.style.background=d.success?"rgba(76,175,80,.1)":"rgba(244,67,54,.1)";
     res.style.color=d.success?"#4caf50":"#f44336";
-    var files = d.appdata_files && d.appdata_files.length
-      ? "<br>📄 Fichiers detectes : <code style='color:#ccc;'>" + d.appdata_files.join(", ") + "</code>"
-      : "<br><span style='color:#888;'>Aucun fichier persistant detecte</span>";
-    var launch = d.launch ? (d.launch.success
-      ? "<br>\u25cf App lanc\u00e9e : " + (d.launch.message || "OK")
-      : "<br>\u26a0\ufe0f Lancement auto : " + (d.launch.message || "non configure")) : "";
-    res.innerHTML = d.message + files + launch;
-    if(d.success) setTimeout(()=>location.reload(),2500);
-  }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
+    var typeInfo = d.detected_type
+      ? "<br>&#x1F50D; Type : <strong>"+d.detected_type+"</strong>"
+        +(d.detected_info?" &mdash; "+d.detected_info:"")
+      : "";
+    var files = d.appdata_files&&d.appdata_files.length
+      ? "<br>&#x1F4C4; Appdata : <code style='color:#ccc;'>"+d.appdata_files.join(", ")+"</code>"
+      : "";
+    var launch = d.launch
+      ? (d.launch.success
+          ? "<br>&#x25B6; Lance : "+(d.launch.message||"OK")
+          : "<br>&#x26A0; Lancement : "+(d.launch.message||"non configure"))
+      : "";
+    res.innerHTML = d.message + typeInfo + files + launch;
+    if(d.success) setTimeout(function(){{location.reload();}},2500);
+  }}).catch(function(e){{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
 }}
+
 function storeAction(action,id){{
   var res=document.getElementById("sr-"+id);
   res.style.display="block"; res.style.color="#ff9800"; res.textContent="⏳ En cours...";
