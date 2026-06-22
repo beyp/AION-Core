@@ -249,9 +249,6 @@ class AppStore:
                 logger.info("Nettoyage dossier residuel (status=%r): %s", app_status, install_path)
                 ok, err = _force_remove(install_path)
                 if not ok:
-                    return {
-                        "success": False,
-                if not ok:
                     _err_msg = (
                         f"Impossible de supprimer {install_path}: {err}. "
                         f"Supprime manuellement: cmd /c rd /s /q {install_path}"
