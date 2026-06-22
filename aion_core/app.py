@@ -57,6 +57,12 @@ class AionApp:
         self.memory     = MemoryManager()
         self.brain      = AionBrain()
         self.app_router = AppRouter(self.brain, self.memory)
+
+        # Updater AION-Core
+        from aion_core.updater import AionUpdater
+        update_mode     = os.getenv("AION_UPDATE_MODE", "notify")
+        update_interval = int(os.getenv("AION_UPDATE_INTERVAL", "3600"))
+        self.updater    = AionUpdater(mode=update_mode, check_interval=update_interval)
         self.discovery  = AppDiscovery(self.brain, self.memory)
         self.launcher   = AppLauncher()  # lit apps.json + apps.local.json
 
