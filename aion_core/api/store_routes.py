@@ -291,65 +291,43 @@ def register_store_routes(app, aion_app):
 
     @app.post("/api/store/stop/{app_id}")
     async def store_stop(app_id: str):
-        """Arrete une app via son port."""
-        try:
-            import json, subprocess
-            from pathlib import Path
-            # Fusionner apps.json (built-in) + apps.local.json (perso)
-            registry = {"apps": {}}
-            for _rf in [Path("apps.json"), Path("apps.local.json")]:
-                if _rf.exists():
-                    try:
-                        registry["apps"].update(json.loads(_rf.read_text(encoding="utf-8")).get("apps", {}))
-                    except Exception:
-                        pass
-            app_cfg  = registry.get("apps", {}).get(app_id, {})
-            port     = app_cfg.get("autostart", {}).get("port", 0)
-            if not port:
-                return {"success": False, "message": "Port non configure"}
-            proc = subprocess.run(["netstat", "-ano"], capture_output=True, text=True,
-                                     encoding="utf-8", errors="replace")
-            pid = None
-            stdout = proc.stdout or ""
-            for line in stdout.splitlines():
-                if f":{port} " in line and "LISTENING" in line:
-                    parts = line.split()
-                    if parts: pid = parts[-1]
-                    break
-            if pid:
-                subprocess.run(["taskkill", "/PID", pid, "/F"], capture_output=True)
-                return {"success": True, "message": f"'{app_id}' arrete (PID {pid})"}
-            return {"success": False, "message": f"Aucun process sur port {port}"}
-        except Exception as e:
-            return {"success": False, "message": str(e)}
+        """Stoppe une app via ProcessManager (PID + port)."""
+        from pathlib import Path as _P
+        from aion_core.store.process_manager import ProcessManager
+        import json as _j
+        port = 0
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    port = d.get("apps",{}).get(app_id,{}).get("autostart",{}).get("port",0)
+                    if port: break
+                except Exception: pass
+        pm = ProcessManager()
+        result = pm.stop(app_id, port=int(port))
+        logger.info("Stop %s: %s", app_id, result.get("message"))
+        return result
 
     @app.get("/api/store/running/{app_id}")
     async def store_is_running(app_id: str):
-        """Verifie si une app repond sur son URL."""
-        try:
-            import json, requests as _req
-            from pathlib import Path
-            # Fusionner apps.json (built-in) + apps.local.json (perso)
-            registry = {"apps": {}}
-            for _rf in [Path("apps.json"), Path("apps.local.json")]:
-                if _rf.exists():
-                    try:
-                        registry["apps"].update(json.loads(_rf.read_text(encoding="utf-8")).get("apps", {}))
-                    except Exception:
-                        pass
-            app_cfg  = registry.get("apps", {}).get(app_id, {})
-            url      = app_cfg.get("url", "")
-            health   = app_cfg.get("health_endpoint", "/health")
-            running  = False
-            if url:
+        """Verifie si une app tourne (PID sauvegarde + port)."""
+        from pathlib import Path as _P
+        from aion_core.store.process_manager import ProcessManager
+        import json as _j
+        port = 0; url = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
                 try:
-                    r = _req.get(url.rstrip("/") + health, timeout=2)
-                    running = r.status_code < 400
-                except Exception:
-                    pass
-            return {"app_id": app_id, "running": running, "url": url}
-        except Exception as e:
-            return {"app_id": app_id, "running": False, "error": str(e)}
+                    d    = _j.loads(rf.read_text(encoding="utf-8"))
+                    cfg  = d.get("apps",{}).get(app_id,{})
+                    port = cfg.get("autostart",{}).get("port",0)
+                    url  = cfg.get("url","")
+                    if port or url: break
+                except Exception: pass
+        pm = ProcessManager()
+        running = pm.is_running(app_id, int(port))
+        return {"app_id": app_id, "running": running, "url": url, "port": port}
+
 
     # ── Page Web App Store ────────────────────────────────────────
 
