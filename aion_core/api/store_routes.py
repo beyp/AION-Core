@@ -593,14 +593,32 @@ function scanAppdata(id){{
   var res=document.getElementById("sr-"+id);
   res.style.display="block"; res.style.color="#1e90ff"; res.textContent="🔍 Scan en cours...";
   fetch("/api/store/scan/"+id).then(r=>r.json()).then(d=>{{
-    res.style.color=d.success?"#4caf50":"#f44336";
-    res.textContent=d.message;
-    if(d.success) setTimeout(()=>location.reload(),1200);
+    res.style.color=d.success?"#4caf50":"#888";
+    var msg=d.message;
+    if(d.all_files_in_repo&&d.all_files_in_repo.length){{
+      msg+=" | Fichiers dans repo: "+d.all_files_in_repo.slice(0,6).join(", ");
+      if(d.all_files_in_repo.length>6) msg+=" +"+(d.all_files_in_repo.length-6)+" autres";
+    }}
+    res.innerHTML=msg;
+    if(d.success&&d.appdata_files&&d.appdata_files.length) setTimeout(()=>location.reload(),1500);
   }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
 }}
 function showAddFile(id){{
   var el=document.getElementById("add-file-"+id);
   el.style.display=el.style.display==="none"||el.style.display===""?"flex":"none";
+}}
+function quickAddFile(id,filename){{
+  // Remplir le champ et soumettre directement
+  var input=document.getElementById("af-input-"+id);
+  if(input){{ input.value=filename; addAppFile(id); return; }}
+  // Si input pas visible (appdata non vide), appel direct API
+  var res=document.getElementById("sr-"+id)||document.getElementById("sr-add-"+id);
+  if(res){{res.style.display="block";res.style.color="#ff9800";res.textContent="⏳ Ajout...";}}
+  fetch("/api/store/register-file",{{method:"POST",headers:{{"Content-Type":"application/json"}},
+    body:JSON.stringify({{app_id:id,filename:filename}})}}).then(r=>r.json()).then(d=>{{
+    if(res){{res.style.color=d.success?"#4caf50":"#f44336";res.textContent=d.message;}}
+    if(d.success) setTimeout(()=>location.reload(),1000);
+  }}).catch(e=>{{if(res) res.textContent="Erreur: "+e;}});
 }}
 function addAppFile(id){{
   var val=document.getElementById("af-input-"+id).value.trim();
