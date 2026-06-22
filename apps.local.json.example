@@ -1,14 +1,15 @@
 {
-  "_readme": "Copy to apps.local.json — git-ignored. Personal apps managed by AION AppStore.",
+  "_readme": "Copier en apps.local.json — ignoré par git. Apps gérées par AION AppStore.",
   "_doc": {
-    "AION_DATA_DIR": "Injected automatically by AppStore. App can use os.getenv('AION_DATA_DIR') to store DB/data here instead of in the repo.",
-    "appdata_files": "Declared after first run. Use the 'Scan AppData' button in /store after first launch."
+    "appdata_files": "Déclarés après le premier lancement via le bouton Scan AppData.",
+    "AION_DATA_DIR": "Injecté automatiquement. L'app peut utiliser os.getenv('AION_DATA_DIR').",
+    "DB_PATH": "Pour ProjectMind : DB_PATH pointe vers appdata/ via .env"
   },
   "version": "1.0",
   "apps": {
     "quickmind": {
       "name": "QuickMind",
-      "description": "Gestionnaire de taches",
+      "description": "Gestionnaire de tâches personnel",
       "type": "fastapi",
       "status": "installed",
       "connector": "aion_core/apps/quickmind/connector.py",
@@ -47,36 +48,40 @@
     },
     "projectmind": {
       "name": "ProjectMind",
-      "description": "Gestion de projets avec Gantt et capacity planning",
-      "type": "fastapi",
+      "description": "Gestion de projets avec Gantt, capacity planning — Docker",
+      "type": "docker",
       "status": "installed",
       "connector": null,
       "url": "http://localhost:8766",
-      "health_endpoint": "/health",
+      "health_endpoint": "/api/projects",
       "github": "beyp/ProjectMind",
       "icon": "clipboard",
-      "version": "0.1",
+      "version": "1.0",
       "autostart": {
         "enabled": true,
-        "mode": "fastapi",
+        "mode": "docker",
         "path": "C:\\AION_APPS\\repos\\ProjectMind",
         "command": [
-          "C:\\AION_APPS\\repos\\ProjectMind\\.venv\\Scripts\\python.exe",
-          "main.py"
+          "docker",
+          "compose",
+          "-f",
+          "docker-compose.yml",
+          "up",
+          "-d",
+          "--build"
         ],
         "port": 8766,
         "startup_order": 2,
         "health_check": false,
         "env": {
-          "AION_DATA_DIR": "C:\\AION_APPS\\appdata\\projectmind",
-          "AION_APP_ID": "projectmind"
+          "DB_PATH": "/app/data/projectmind.db",
+          "AION_DATA_DIR": "C:\\AION_APPS\\appdata\\projectmind"
         }
       },
       "store": {
         "install_path": "C:\\AION_APPS\\repos\\ProjectMind",
         "appdata_path": "C:\\AION_APPS\\appdata\\projectmind",
         "appdata_files": [
-          "projectmind.db",
           "data/projectmind.db"
         ],
         "github": "beyp/ProjectMind",
