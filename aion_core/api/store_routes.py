@@ -332,7 +332,9 @@ def register_store_routes(app, aion_app):
                       <input id="af-input-{app_id}" type="text"
                         placeholder="Chemin relatif (ex: data/myfile.db)"
                         style="flex:1;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
-                        padding:6px 10px;border-radius:5px;font-size:.82rem;">
+                        padding:6px 10px;border-radius:5px;font-size:.82rem;"
+                        onkeydown="if(event.key==='Enter') addAppFile('{app_id}')"
+                        title="Entree pour ajouter">
                       <button onclick="addAppFile('{app_id}')"
                         style="background:#ff9800;color:#fff;border:none;padding:6px 12px;
                         border-radius:5px;cursor:pointer;font-size:.8rem;">➕</button>
@@ -468,7 +470,9 @@ input,code{{font-family:"Cascadia Code",Consolas,monospace;}}
           <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Repo GitHub</label>
           <input id="inst-repo" type="text" placeholder="owner/repo  (ex: beyp/QuickMind)"
             style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
-            padding:9px 14px;border-radius:6px;font-size:.88rem;">
+            padding:9px 14px;border-radius:6px;font-size:.88rem;"
+            onkeydown="if(event.key==='Enter') doInstall()"
+            title="Entree pour installer">
         </div>
         <div style="flex-shrink:0;">
           <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">&nbsp;</label>
