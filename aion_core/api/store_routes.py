@@ -119,6 +119,94 @@ def register_store_routes(app, aion_app):
     async def store_list_appdata(app_id: str):
         return {"app_id": app_id, "files": store.list_appdata(app_id)}
 
+    @app.post("/api/store/start/{app_id}")
+    async def store_start(app_id: str):
+        """Lance une app installee."""
+        try:
+            import json
+            from pathlib import Path
+            from aion_core.discovery.launcher import AppLauncher
+            from aion_core.store.app_setup import AppSetup
+
+            reg_file = Path("apps.json")
+            registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+            app_cfg  = registry.get("apps", {}).get(app_id, {})
+            if not app_cfg:
+                return {"success": False, "message": f"App '{app_id}' introuvable"}
+
+            autostart = app_cfg.get("autostart", {})
+            store_cfg = app_cfg.get("store", {})
+            install_path = store_cfg.get("install_path", autostart.get("path", ""))
+
+            # Garantir le path
+            if install_path and not autostart.get("path"):
+                autostart["path"] = install_path
+
+            # Detecter la commande via AppSetup si manquante
+            if install_path and not autostart.get("command"):
+                setup = AppSetup(app_id, install_path)
+                cmd   = setup.get_launch_command()
+                autostart["command"] = [str(c) for c in cmd]
+                autostart["mode"]    = autostart.get("mode", "fastapi")
+                autostart["enabled"] = True
+                app_cfg["autostart"] = autostart
+
+            launcher = AppLauncher()
+            launcher._registry = registry
+            result = launcher.start_app(app_id)
+            return result
+        except Exception as e:
+            logger.error("Store start %s: %s", app_id, e)
+            return {"success": False, "message": str(e)}
+
+    @app.post("/api/store/stop/{app_id}")
+    async def store_stop(app_id: str):
+        """Arrete une app via son port."""
+        try:
+            import json, subprocess
+            from pathlib import Path
+            reg_file = Path("apps.json")
+            registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+            app_cfg  = registry.get("apps", {}).get(app_id, {})
+            port     = app_cfg.get("autostart", {}).get("port", 0)
+            if not port:
+                return {"success": False, "message": "Port non configure"}
+            proc = subprocess.run(["netstat", "-ano"], capture_output=True, text=True)
+            pid = None
+            for line in proc.stdout.splitlines():
+                if f":{port} " in line and "LISTENING" in line:
+                    parts = line.split()
+                    if parts: pid = parts[-1]
+                    break
+            if pid:
+                subprocess.run(["taskkill", "/PID", pid, "/F"], capture_output=True)
+                return {"success": True, "message": f"'{app_id}' arrete (PID {pid})"}
+            return {"success": False, "message": f"Aucun process sur port {port}"}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    @app.get("/api/store/running/{app_id}")
+    async def store_is_running(app_id: str):
+        """Verifie si une app repond sur son URL."""
+        try:
+            import json, requests as _req
+            from pathlib import Path
+            reg_file = Path("apps.json")
+            registry = json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+            app_cfg  = registry.get("apps", {}).get(app_id, {})
+            url      = app_cfg.get("url", "")
+            health   = app_cfg.get("health_endpoint", "/health")
+            running  = False
+            if url:
+                try:
+                    r = _req.get(url.rstrip("/") + health, timeout=2)
+                    running = r.status_code < 400
+                except Exception:
+                    pass
+            return {"app_id": app_id, "running": running, "url": url}
+        except Exception as e:
+            return {"app_id": app_id, "running": False, "error": str(e)}
+
     # ── Page Web App Store ────────────────────────────────────────
 
     @app.get("/store", response_class=HTMLResponse)
@@ -218,19 +306,28 @@ def register_store_routes(app, aion_app):
                 <div>Backups disponibles : <span style="color:#ccc;">{nb_back}</span></div>
               </div>
               {appdata_html}
-              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+                <button id="btn-start-{app_id}" onclick="appStart('{app_id}')"
+                  style="background:#4caf5022;border:1px solid #4caf5055;color:#4caf50;
+                  padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
+                  &#x25B6; Start</button>
+                <button id="btn-stop-{app_id}" onclick="appStop('{app_id}')"
+                  style="background:#f4433622;border:1px solid #f4433655;color:#f44336;
+                  padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
+                  &#x25A0; Stop</button>
+                <div style="width:1px;height:20px;background:#2a2d3e;margin:0 4px;"></div>
                 <button onclick="storeAction('update','{app_id}')"
                   style="background:#1e90ff22;border:1px solid #1e90ff55;color:#1e90ff;
-                  padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;">
-                  🔄 Mettre a jour</button>
+                  padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
+                  &#x1F504; Update</button>
                 <button onclick="storeAction('restore','{app_id}')"
-                  style="background:#4caf5022;border:1px solid #4caf5055;color:#4caf50;
-                  padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;">
-                  💾 Restaurer AppData</button>
+                  style="background:#ff980022;border:1px solid #ff980055;color:#ff9800;
+                  padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
+                  &#x1F4BE; Restaurer</button>
                 <button onclick="storeUninstall('{app_id}')"
-                  style="background:#f4433622;border:1px solid #f4433655;color:#f44336;
-                  padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.8rem;">
-                  🗑️ Desinstaller</button>
+                  style="background:#f4433611;border:1px solid #f4433633;color:#f44336;
+                  padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
+                  &#x1F5D1;&#xFE0F; Supprimer</button>
               </div>
               <div id="sr-{app_id}" style="margin-top:8px;font-size:.82rem;color:#4caf50;display:none;"></div>
             </div>'''
@@ -400,6 +497,44 @@ function storeUninstall(id){{
     if(d.success) setTimeout(()=>location.reload(),1500);
   }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
 }}
+function appStart(id){{
+  var res=document.getElementById("sr-"+id);
+  res.style.display="block"; res.style.color="#ff9800";
+  res.textContent="⏳ Demarrage en cours (venv + pip + launch)...";
+  fetch("/api/store/start/"+id,{{method:"POST"}}).then(r=>r.json()).then(d=>{{
+    res.style.color=d.success?"#4caf50":"#f44336";
+    res.textContent=d.message;
+    if(d.success) setTimeout(()=>checkRunning(id),3000);
+  }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
+}}
+function appStop(id){{
+  var res=document.getElementById("sr-"+id);
+  res.style.display="block"; res.style.color="#ff9800"; res.textContent="⏳ Arret...";
+  fetch("/api/store/stop/"+id,{{method:"POST"}}).then(r=>r.json()).then(d=>{{
+    res.style.color=d.success?"#4caf50":"#f44336"; res.textContent=d.message;
+    if(d.success) setTimeout(()=>checkRunning(id),1500);
+  }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
+}}
+function checkRunning(id){{
+  fetch("/api/store/running/"+id).then(r=>r.json()).then(d=>{{
+    var btnStart=document.getElementById("btn-start-"+id);
+    var btnStop=document.getElementById("btn-stop-"+id);
+    if(d.running){{
+      if(btnStart) btnStart.style.opacity="0.4";
+      if(btnStop)  btnStop.style.opacity="1";
+    }} else {{
+      if(btnStart) btnStart.style.opacity="1";
+      if(btnStop)  btnStop.style.opacity="0.4";
+    }}
+  }}).catch(()=>{{}});
+}}
+// Verifier le statut de toutes les apps au chargement
+document.addEventListener("DOMContentLoaded", function(){{
+  document.querySelectorAll("[id^='btn-start-']").forEach(function(btn){{
+    var id = btn.id.replace("btn-start-","");
+    checkRunning(id);
+  }});
+}});
 </script>
 </body></html>'''
         return HTMLResponse(page)
