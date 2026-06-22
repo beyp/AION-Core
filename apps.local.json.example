@@ -1,5 +1,9 @@
 {
-  "_readme": "Copy this file to apps.local.json and customize. This file is git-ignored.",
+  "_readme": "Copy to apps.local.json — git-ignored. Personal apps managed by AION AppStore.",
+  "_doc": {
+    "AION_DATA_DIR": "Injected automatically by AppStore. App can use os.getenv('AION_DATA_DIR') to store DB/data here instead of in the repo.",
+    "appdata_files": "Declared after first run. Use the 'Scan AppData' button in /store after first launch."
+  },
   "version": "1.0",
   "apps": {
     "quickmind": {
@@ -24,13 +28,58 @@
         "port": 8765,
         "startup_order": 1,
         "health_check": false,
-        "env": {}
+        "env": {
+          "AION_DATA_DIR": "C:\\AION_APPS\\appdata\\quickmind",
+          "AION_APP_ID": "quickmind"
+        }
       },
       "store": {
         "install_path": "C:\\AION_APPS\\repos\\QuickMind",
         "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
-        "appdata_files": [],
+        "appdata_files": [
+          "data/quickmind.db",
+          "memory.json"
+        ],
         "github": "beyp/QuickMind",
+        "installed_at": "",
+        "last_update": ""
+      }
+    },
+    "projectmind": {
+      "name": "ProjectMind",
+      "description": "Gestion de projets avec Gantt et capacity planning",
+      "type": "fastapi",
+      "status": "installed",
+      "connector": null,
+      "url": "http://localhost:8766",
+      "health_endpoint": "/health",
+      "github": "beyp/ProjectMind",
+      "icon": "clipboard",
+      "version": "0.1",
+      "autostart": {
+        "enabled": true,
+        "mode": "fastapi",
+        "path": "C:\\AION_APPS\\repos\\ProjectMind",
+        "command": [
+          "C:\\AION_APPS\\repos\\ProjectMind\\.venv\\Scripts\\python.exe",
+          "main.py"
+        ],
+        "port": 8766,
+        "startup_order": 2,
+        "health_check": false,
+        "env": {
+          "AION_DATA_DIR": "C:\\AION_APPS\\appdata\\projectmind",
+          "AION_APP_ID": "projectmind"
+        }
+      },
+      "store": {
+        "install_path": "C:\\AION_APPS\\repos\\ProjectMind",
+        "appdata_path": "C:\\AION_APPS\\appdata\\projectmind",
+        "appdata_files": [
+          "projectmind.db",
+          "data/projectmind.db"
+        ],
+        "github": "beyp/ProjectMind",
         "installed_at": "",
         "last_update": ""
       }
