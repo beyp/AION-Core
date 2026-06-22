@@ -535,6 +535,11 @@ def register_store_routes(app, aion_app):
                   style="background:#f4433622;border:1px solid #f4433655;color:#f44336;
                   padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
                   &#x25A0; Stop</button>
+                <button onclick="openConfig('{app_id}')"
+                  title="Configurer les cles API et parametres de l'app"
+                  style="background:#ff980022;border:1px solid #ff980055;color:#ff9800;
+                  padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
+                  &#x2699;&#xFE0F; Config</button>
                 <button onclick="scanAfterStart('{app_id}')"
                   title="Scanner et sauvegarder les fichiers appdata apres un premier lancement"
                   style="background:#9c27b022;border:1px solid #9c27b055;color:#9c27b0;
@@ -824,6 +829,145 @@ document.addEventListener("DOMContentLoaded", function(){{
     checkRunning(id);
   }});
 }});
+// ── Modal Config ──────────────────────────────────────────────
+function openConfig(id) {{
+  var modal = document.getElementById("config-modal");
+  var body  = document.getElementById("config-body");
+  var title = document.getElementById("config-title");
+  if (!modal) return;
+  title.textContent = "⚙️ Configuration : " + id;
+  body.innerHTML = "<div style='color:#888;text-align:center;padding:20px;'>⏳ Chargement...</div>";
+  modal.style.display = "flex";
+
+  fetch("/api/store/" + id + "/config")
+    .then(function(r) {{ return r.json(); }})
+    .then(function(d) {{
+      if (!d.files || Object.keys(d.files).length === 0) {{
+        body.innerHTML = "<p style='color:#888;'>Aucun fichier de config trouve (config.yaml, .env).</p>" +
+          "<p style='color:#555;font-size:.8rem;'>Lance l'app une fois puis reviens ici.</p>";
+        return;
+      }}
+      var html = "";
+      if (d.has_empty) {{
+        html += "<div style='background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);" +
+          "border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#f44336;'>" +
+          "&#x26A0;&#xFE0F; " + d.empty_count + " cle(s) non configuree(s)</div>";
+      }}
+      Object.entries(d.files).forEach(function(entry) {{
+        var fname  = entry[0];
+        var fdata  = entry[1];
+        var loc    = fdata.in_appdata ? "&#x1F512; appdata/" : "&#x1F4C1; repo/";
+        html += "<div style='margin-bottom:14px;'>";
+        html += "<div style='font-size:.78rem;color:#888;margin-bottom:6px;display:flex;justify-content:space-between;'>";
+        html += "<strong style='color:#e0e0e0;'>"+fname+"</strong>";
+        html += "<span>"+loc+"</span></div>";
+        fdata.fields.forEach(function(f) {{
+          var emptyStyle = f.empty
+            ? "border-color:#f44336;background:rgba(244,67,54,.05);"
+            : "border-color:#2a2d3e;";
+          var inputType = f.sensitive ? "password" : "text";
+          var placeholder = f.empty ? "⚠️ Non configuré" : "";
+          html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:6px;'>";
+          html += "<label style='width:180px;font-size:.78rem;color:" +
+            (f.empty ? "#f44336" : "#888") + ";flex-shrink:0;overflow:hidden;" +
+            "text-overflow:ellipsis;white-space:nowrap;' title='"+f.key+"'>"+f.key+"</label>";
+          html += "<input type='"+inputType+"' value='"+(f.sensitive && !f.empty ? "••••••" : f.value.replace(/'/g, "&#39;"))+"'" +
+            " data-key='"+f.key+"' data-file='"+fname+"' data-app='"+id+"'" +
+            " placeholder='"+placeholder+"'" +
+            " style='flex:1;background:#12141f;border:1px solid;"+emptyStyle+
+            "color:#e0e0e0;padding:5px 10px;border-radius:5px;font-size:.82rem;'" +
+            " onchange='markChanged(this)'>";
+          html += "</div>";
+        }});
+        html += "</div>";
+      }});
+      html += "<div id='config-save-result' style='font-size:.82rem;margin-top:4px;'></div>";
+      body.innerHTML = html;
+    }})
+    .catch(function(e) {{
+      body.innerHTML = "<p style='color:#f44336;'>Erreur: " + e + "</p>";
+    }});
+}}
+
+function markChanged(input) {{
+  input.style.borderColor = "#ff9800";
+  input.dataset.changed = "1";
+}}
+
+function saveConfig(id) {{
+  var inputs  = document.querySelectorAll("[data-app='"+id+"'][data-changed='1']");
+  var updates = {{}};
+  inputs.forEach(function(inp) {{
+    var file = inp.dataset.file;
+    var key  = inp.dataset.key;
+    var val  = inp.value;
+    if (val === "••••••") return; // masque non modifie
+    if (!updates[file]) updates[file] = {{}};
+    updates[file][key] = val;
+  }});
+  if (Object.keys(updates).length === 0) {{
+    document.getElementById("config-save-result").textContent = "Aucune modification.";
+    return;
+  }}
+  var res = document.getElementById("config-save-result");
+  res.style.color = "#ff9800"; res.textContent = "⏳ Sauvegarde...";
+  fetch("/api/store/" + id + "/config", {{
+    method: "POST",
+    headers: {{"Content-Type": "application/json"}},
+    body: JSON.stringify({{updates: updates}})
+  }})
+  .then(function(r) {{ return r.json(); }})
+  .then(function(d) {{
+    res.style.color = d.success ? "#4caf50" : "#f44336";
+    res.textContent = d.message;
+    if (d.success) {{
+      document.querySelectorAll("[data-app='"+id+"'][data-changed='1']").forEach(function(i) {{
+        i.style.borderColor = "#4caf50"; i.dataset.changed = "0";
+      }});
+    }}
+  }})
+  .catch(function(e) {{ res.style.color="#f44336"; res.textContent="Erreur: "+e; }});
+}}
+
+function closeConfig() {{
+  document.getElementById("config-modal").style.display = "none";
+}}
 </script>
+
+<!-- Modal Config -->
+<div id="config-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+  z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:12px;
+    width:600px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;">
+    <!-- Header modal -->
+    <div style="display:flex;align-items:center;padding:16px 20px;
+      border-bottom:1px solid #2a2d3e;flex-shrink:0;">
+      <span id="config-title" style="font-weight:600;font-size:1rem;flex:1;"></span>
+      <button onclick="closeConfig()"
+        style="background:transparent;border:none;color:#888;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+    </div>
+    <!-- Body scrollable -->
+    <div id="config-body" style="padding:16px 20px;overflow-y:auto;flex:1;"></div>
+    <!-- Footer -->
+    <div style="padding:12px 20px;border-top:1px solid #2a2d3e;display:flex;
+      justify-content:flex-end;gap:8px;flex-shrink:0;">
+      <div style="flex:1;font-size:.75rem;color:#555;">
+        &#x1F512; Les valeurs sont sauvegardees dans <code style="color:#888;">C:/AION_APPS/appdata/</code>
+        — jamais dans git.
+      </div>
+      <button onclick="var id=document.getElementById('config-title').textContent.split(': ')[1]; saveConfig(id);"
+        style="background:#1e90ff;color:#fff;border:none;padding:8px 20px;
+        border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:600;">
+        &#x1F4BE; Sauvegarder
+      </button>
+      <button onclick="closeConfig()"
+        style="background:transparent;border:1px solid #2a2d3e;color:#888;
+        padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.85rem;">
+        Fermer
+      </button>
+    </div>
+  </div>
+</div>
+
 </body></html>'''
         return HTMLResponse(page)
