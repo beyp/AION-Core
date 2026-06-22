@@ -92,6 +92,22 @@ header .spacer{flex:1;}
     <span class="badge badge-red">&#9679; Groq offline</span>
     {% endif %}
   </span>
+  <!-- Bouton mise a jour AION-Core -->
+  <div id="aion-update-indicator" style="position:relative;">
+    <button id="update-btn" class="hbtn" onclick="checkAionUpdate()"
+      title="Verifier les mises a jour AION-Core"
+      style="display:flex;align-items:center;gap:6px;position:relative;">
+      <span id="update-btn-icon">&#x1F504;</span>
+      <span id="update-btn-label" style="font-size:.78rem;">MAJ</span>
+      <span id="update-dot" style="display:none;position:absolute;top:-3px;right:-3px;
+        width:8px;height:8px;border-radius:50%;background:#f44336;"></span>
+    </button>
+    <!-- Popup résultat -->
+    <div id="update-popup" style="display:none;position:absolute;right:0;top:42px;
+      width:320px;background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
+      padding:16px;z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,.5);">
+    </div>
+  </div>
   <button class="hbtn" onclick="toggleTheme()">&#x1F313;</button>
   <a href="/docs" target="_blank" class="hbtn">&#x1F4D6; API</a>
 </header>
@@ -158,6 +174,166 @@ function toggleTheme() {
 }
 var t = localStorage.getItem("theme");
 if (t) document.documentElement.setAttribute("data-theme", t);
+
+// ── Updater AION-Core ─────────────────────────────────────────────
+function checkAionUpdate() {
+  var btn    = document.getElementById("update-btn");
+  var icon   = document.getElementById("update-btn-icon");
+  var label  = document.getElementById("update-btn-label");
+  var popup  = document.getElementById("update-popup");
+  var dot    = document.getElementById("update-dot");
+
+  // Toggle popup si deja ouvert
+  if (popup.style.display === "block") {
+    popup.style.display = "none";
+    return;
+  }
+
+  // Animation chargement
+  icon.textContent  = "\u23F3";
+  label.textContent = "...";
+  btn.disabled      = true;
+  popup.style.display = "block";
+  popup.innerHTML = "<div style=\"color:#888;font-size:.82rem;text-align:center;padding:8px\">\u23F3 Verification en cours...</div>";
+
+  fetch("/api/update/check", {method:"POST"})
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled      = false;
+      icon.textContent  = "\u1F504";
+      label.textContent = "MAJ";
+
+      if (d.error) {
+        popup.innerHTML = _updatePopupError(d.error);
+        return;
+      }
+
+      if (d.update_available) {
+        dot.style.display = "block";
+        popup.innerHTML   = _updatePopupAvailable(d);
+      } else {
+        dot.style.display = "none";
+        popup.innerHTML   = _updatePopupUpToDate(d);
+      }
+    })
+    .catch(e => {
+      btn.disabled      = false;
+      icon.textContent  = "\u1F504";
+      label.textContent = "MAJ";
+      popup.innerHTML   = _updatePopupError(e.toString());
+    });
+}
+
+function _updatePopupUpToDate(d) {
+  return \`<div style="text-align:center;padding:8px 0;">
+    <div style="font-size:1.8rem;margin-bottom:6px;">\u2705</div>
+    <div style="font-weight:600;color:#4caf50;margin-bottom:4px;">AION-Core est a jour</div>
+    <div style="font-size:.78rem;color:#888;">
+      Commit : <code style="color:#ccc;">\${d.current_commit || "?"}</code>
+    </div>
+    \${d.checked_at ? \`<div style="font-size:.72rem;color:#555;margin-top:4px;">
+      Verifie le \${new Date(d.checked_at).toLocaleString()}</div>\` : ""}
+    <button onclick="document.getElementById('update-popup').style.display='none'"
+      style="margin-top:10px;background:transparent;border:1px solid #2a2d3e;
+      color:#888;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:.78rem;">
+      Fermer
+    </button>
+  </div>\`;
+}
+
+function _updatePopupAvailable(d) {
+  var commits = d.commits_behind || 1;
+  var msg     = d.latest_message ? d.latest_message.substring(0,55) : "";
+  var date    = d.latest_date || "";
+  var sha     = d.remote_commit || "";
+  return \`<div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <span style="font-size:1.3rem;">\u1F4E6</span>
+      <div>
+        <div style="font-weight:600;color:#1e90ff;font-size:.9rem;">
+          Mise a jour disponible
+          <span style="font-size:.72rem;color:#888;margin-left:4px;">\${commits} commit(s)</span>
+        </div>
+        <div style="font-size:.75rem;color:#888;">\${sha}</div>
+      </div>
+    </div>
+    \${msg ? \`<div style="font-size:.8rem;color:#ccc;background:#0f1117;
+      padding:8px 10px;border-radius:6px;margin-bottom:10px;
+      border-left:2px solid #1e90ff;">\${msg}</div>\` : ""}
+    \${date ? \`<div style="font-size:.72rem;color:#888;margin-bottom:10px;">\${date}</div>\` : ""}
+    <div style="display:flex;gap:6px;">
+      <button onclick="applyAionUpdateFromHeader()"
+        style="flex:1;background:#1e90ff;color:#fff;border:none;
+        padding:8px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
+        \u2B07\uFE0F Mettre a jour + redemarrer
+      </button>
+      <button onclick="document.getElementById('update-popup').style.display='none'"
+        style="background:transparent;border:1px solid #2a2d3e;color:#888;
+        padding:8px 10px;border-radius:6px;cursor:pointer;font-size:.78rem;">
+        Plus tard
+      </button>
+    </div>
+  </div>\`;
+}
+
+function _updatePopupError(err) {
+  return \`<div style="text-align:center;padding:8px 0;">
+    <div style="font-size:1.5rem;margin-bottom:6px;">\u26A0\uFE0F</div>
+    <div style="font-size:.8rem;color:#f44336;margin-bottom:8px;">Erreur de verification</div>
+    <div style="font-size:.75rem;color:#888;">\${err}</div>
+    <button onclick="document.getElementById('update-popup').style.display='none'"
+      style="margin-top:8px;background:transparent;border:1px solid #2a2d3e;
+      color:#888;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:.78rem;">
+      Fermer
+    </button>
+  </div>\`;
+}
+
+function applyAionUpdateFromHeader() {
+  if (!confirm("Mettre a jour AION-Core et redemarrer ?")) return;
+  var popup  = document.getElementById("update-popup");
+  popup.innerHTML = "<div style=\"color:#ff9800;font-size:.82rem;text-align:center;padding:8px\">\u23F3 git pull + pip install en cours...</div>";
+  fetch("/api/update/apply", {method:"POST"})
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        popup.innerHTML = \`<div style="text-align:center;padding:8px;">
+          <div style="font-size:1.5rem;">\u2705</div>
+          <div style="color:#4caf50;font-weight:600;margin:6px 0;">Mise a jour appliquee !</div>
+          <div style="font-size:.78rem;color:#888;">Redemarrage dans 5 secondes...</div>
+        </div>\`;
+        setTimeout(() => {
+          popup.innerHTML = "<div style=\"color:#888;font-size:.82rem;text-align:center;\">\u23F3 Reconnexion...</div>";
+          setTimeout(() => location.reload(), 6000);
+        }, 3000);
+      } else {
+        popup.innerHTML = _updatePopupError(d.message || "Erreur inconnue");
+      }
+    })
+    .catch(e => popup.innerHTML = _updatePopupError(e.toString()));
+}
+
+// Fermer le popup en cliquant ailleurs
+document.addEventListener("click", function(e) {
+  var indicator = document.getElementById("aion-update-indicator");
+  var popup     = document.getElementById("update-popup");
+  if (indicator && popup && !indicator.contains(e.target)) {
+    popup.style.display = "none";
+  }
+});
+
+// Verifier le statut au chargement (sans faire de fetch, juste lire l'etat)
+window.addEventListener("DOMContentLoaded", function() {
+  fetch("/api/update/status")
+    .then(r => r.json())
+    .then(d => {
+      var dot = document.getElementById("update-dot");
+      if (d.update_available && dot) {
+        dot.style.display = "block";
+      }
+    })
+    .catch(() => {});
+});
 </script>
 {% block extra_script %}{% endblock %}
 </body>
