@@ -185,29 +185,28 @@ class AppSetup:
         bat_name = f"start_{self.app_id}.bat"
         bat_path = self.install_path / bat_name
 
-        bat_content = f"""@echo off
-title {self.app_id.title()} — AION App
-echo.
-echo  ================================
-echo   {self.app_id.title()} — AION App
-echo  ================================
-echo.
-
-cd /d "{self.install_path}"
-
-:: Activer le venv
-if exist ".venv\Scripts\activate.bat" (
-    call .venv\Scripts\activate.bat
-) else (
-    echo [WARN] Venv non trouve - utilisation Python systeme
-)
-
-:: Lancer l'app
-echo  Demarrage {self.app_id}...
-python {launch_script}
-
-pause
-"""
+        venv_activate = str(self.venv_path / "Scripts" / "activate.bat")
+        bat_content = (
+            "@echo off\r\n"
+            f"title {self.app_id.title()} - AION App\r\n"
+            "echo.\r\n"
+            f"echo  === {self.app_id.title()} - AION App ===\r\n"
+            "echo.\r\n"
+            f"cd /d \"{self.install_path}\"\r\n"
+            "\r\n"
+            ":: Activer le venv\r\n"
+            f"if exist \".venv\\Scripts\\activate.bat\" (\r\n"
+            f"    call .venv\\Scripts\\activate.bat\r\n"
+            ") else (\r\n"
+            "    echo [WARN] Venv non trouve\r\n"
+            ")\r\n"
+            "\r\n"
+            ":: Lancer l'app\r\n"
+            f"echo  Demarrage {self.app_id}...\r\n"
+            f"python {launch_script}\r\n"
+            "\r\n"
+            "pause\r\n"
+        )
         try:
             bat_path.write_text(bat_content, encoding="utf-8")
             logger.info("Bat genere : %s", bat_path)
@@ -221,7 +220,7 @@ pause
     def get_launch_command(self) -> list[str]:
         """
         Retourne la commande optimale pour lancer l'app.
-        Priorite : venv python > systeme python
+        Priorite : venv python > systeme python.
         """
         candidates = ["run_api.py", "main.py", "app.py", "server.py", "run.py"]
         script = None
@@ -231,4 +230,13 @@ pause
                 break
 
         python_exe = str(self.venv_python) if self.venv_python.exists() else sys.executable
-        return [python_exe, script] if script else [python_exe, "main.py"]
+        return [python_exe, script or "main.py"]
+
+    def scan_data_after_run(self) -> list[str]:
+        """
+        Re-scanne les fichiers persistants apres un premier lancement.
+        Utile car data/ et *.db n'existent qu'apres que l'app a tourne une fois.
+        Appele automatiquement par /api/store/scan/{app_id}.
+        """
+        from aion_core.store.app_store import _scan_appdata_files
+        return _scan_appdata_files(str(self.install_path))
