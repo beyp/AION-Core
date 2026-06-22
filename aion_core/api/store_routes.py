@@ -37,8 +37,43 @@ def register_store_routes(app, aion_app):
 
     @app.get("/api/store/scan/{app_id}")
     async def store_scan(app_id: str):
-        """Scanne automatiquement les fichiers persistants d'un repo installe."""
-        return store.scan_appdata(app_id)
+        """
+        Scanne les fichiers persistants d'un repo installe et les sauvegarde.
+        Utile apres un premier lancement (data/ cree par l'app au runtime).
+        """
+        result = store.scan_appdata(app_id)
+        # Si de nouveaux fichiers sont detectes, les sauvegarder immediatement
+        if result.get("success") and result.get("appdata_files"):
+            store_cfg = store._get_store_cfg(app_id)
+            if store_cfg and store_cfg.get("install_path"):
+                save_result = store.appdata_mgr.save(
+                    app_id,
+                    store_cfg["install_path"],
+                    result["appdata_files"]
+                )
+                result["saved"] = save_result.get("saved", [])
+                result["missing"] = save_result.get("missing", [])
+        return result
+
+    @app.post("/api/store/scan-and-save/{app_id}")
+    async def store_scan_and_save(app_id: str):
+        """
+        Re-scanne ET sauvegarde immediatement dans appdata/.
+        A appeler apres le premier lancement d'une app nouvellement installee.
+        """
+        result = store.scan_appdata(app_id)
+        if result.get("success") and result.get("appdata_files"):
+            store_cfg = store._get_store_cfg(app_id)
+            if store_cfg and store_cfg.get("install_path"):
+                save_result = store.appdata_mgr.save(
+                    app_id,
+                    store_cfg["install_path"],
+                    result["appdata_files"]
+                )
+                result["saved"]   = save_result.get("saved", [])
+                result["missing"] = save_result.get("missing", [])
+                result["message"] += f" | Sauvegarde: {save_result.get('saved', [])}"
+        return result
 
     @app.post("/api/store/install")
     async def store_install(request: Request):
@@ -315,6 +350,11 @@ def register_store_routes(app, aion_app):
                   style="background:#f4433622;border:1px solid #f4433655;color:#f44336;
                   padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
                   &#x25A0; Stop</button>
+                <button onclick="scanAfterStart('{app_id}')"
+                  title="Scanner et sauvegarder les fichiers appdata apres un premier lancement"
+                  style="background:#9c27b022;border:1px solid #9c27b055;color:#9c27b0;
+                  padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
+                  &#x1F50D; Scan AppData</button>
                 <div style="width:1px;height:20px;background:#2a2d3e;margin:0 4px;"></div>
                 <button onclick="storeAction('update','{app_id}')"
                   style="background:#1e90ff22;border:1px solid #1e90ff55;color:#1e90ff;
@@ -500,11 +540,15 @@ function storeUninstall(id){{
 function appStart(id){{
   var res=document.getElementById("sr-"+id);
   res.style.display="block"; res.style.color="#ff9800";
-  res.textContent="⏳ Demarrage en cours (venv + pip + launch)...";
+  res.textContent="⏳ Demarrage en cours...";
   fetch("/api/store/start/"+id,{{method:"POST"}}).then(r=>r.json()).then(d=>{{
     res.style.color=d.success?"#4caf50":"#f44336";
     res.textContent=d.message;
-    if(d.success) setTimeout(()=>checkRunning(id),3000);
+    if(d.success){{
+      checkRunning(id);
+      // Auto-scan appdata 5s apres le demarrage (l'app a eu le temps de creer data/)
+      setTimeout(()=>scanAfterStart(id), 5000);
+    }}
   }}).catch(e=>{{res.style.color="#f44336";res.textContent="Erreur: "+e;}});
 }}
 function appStop(id){{
@@ -518,7 +562,8 @@ function appStop(id){{
 function checkRunning(id){{
   fetch("/api/store/running/"+id).then(r=>r.json()).then(d=>{{
     var btnStart=document.getElementById("btn-start-"+id);
-    var btnStop=document.getElementById("btn-stop-"+id);
+    var btnStop =document.getElementById("btn-stop-"+id);
+    var res     =document.getElementById("sr-"+id);
     if(d.running){{
       if(btnStart) btnStart.style.opacity="0.4";
       if(btnStop)  btnStop.style.opacity="1";
@@ -527,6 +572,19 @@ function checkRunning(id){{
       if(btnStop)  btnStop.style.opacity="0.4";
     }}
   }}).catch(()=>{{}});
+}}
+function scanAfterStart(id){{
+  var res=document.getElementById("sr-"+id);
+  res.style.display="block"; res.style.color="#1e90ff";
+  res.textContent="🔍 Scan appdata apres lancement...";
+  fetch("/api/store/scan-and-save/"+id,{{method:"POST"}})
+    .then(r=>r.json()).then(d=>{{
+      res.style.color=d.success?"#4caf50":"#888";
+      var saved=d.saved&&d.saved.length?"📄 "+d.saved.join(", "):"(aucun fichier detecte)";
+      res.textContent=d.message+" | "+saved;
+      if(d.success&&d.appdata_files&&d.appdata_files.length)
+        setTimeout(()=>location.reload(),1500);
+    }}).catch(e=>{{res.style.color="#888";res.textContent="Erreur: "+e;}});
 }}
 // Verifier le statut de toutes les apps au chargement
 document.addEventListener("DOMContentLoaded", function(){{
