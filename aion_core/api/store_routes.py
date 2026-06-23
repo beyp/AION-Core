@@ -940,6 +940,7 @@ function openConfig(id) {{
         html += "<div style='font-size:.78rem;color:#888;margin-bottom:6px;display:flex;justify-content:space-between;'>";
         html += "<strong style='color:#e0e0e0;'>"+fname+"</strong>";
         html += "<span>"+loc+"</span></div>";
+        fdata.fields.forEach(function(f) {{
           var emptyStyle = f.empty
             ? "border-color:#f44336;background:rgba(244,67,54,.05);"
             : (f.shared ? "border-color:#1e90ff44;" : "border-color:#2a2d3e;");
