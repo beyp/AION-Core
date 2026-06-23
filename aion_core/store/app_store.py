@@ -588,26 +588,54 @@ class AppStore:
         data_dir = Path(appdata_path)
         data_dir.mkdir(parents=True, exist_ok=True)
 
-        # QuickMind : config.yaml avec DB dans appdata/
+        # QuickMind : config.yaml avec chemins ABSOLUS vers appdata/
+        # QuickMind lit config.yaml et utilise database.path comme chemin DB
         config_example = root / "config.example.yaml"
         config_file    = root / "config.yaml"
-        if config_example.exists() and not config_file.exists():
+
+        # Lire config.yaml existant OU config.example.yaml comme base
+        base_config    = config_file if config_file.exists() else config_example
+        if base_config.exists():
             try:
-                content = config_example.read_text(encoding="utf-8")
-                db_path = str(data_dir / "quickmind.db").replace("\\", "/")
+                content = base_config.read_text(encoding="utf-8")
+
+                # Chemin absolu DB → appdata/quickmind.db
+                db_abs = str(data_dir / "quickmind.db").replace("\\", "/")
+                # Remplacer database.path (relatif ou absolu)
                 content = re.sub(
-                    r'(path:\s*["\']?)data/quickmind\.db(["\']?)',
-                    lambda m: m.group(1) + db_path + m.group(2),
+                    r'(database:\s*\n\s+path:\s*)[^\n]+',
+                    f'\\g<1>"{db_abs}"',
                     content
                 )
-                config_file.write_text(content, encoding="utf-8")
-                logger.info("config.yaml cree pour %s avec DB=%s", app_id, db_path)
-            except Exception as e:
-                logger.warning("Config %s: %s", app_id, e)
+                # Si le pattern simple "path:" existe
+                content = re.sub(
+                    r'(^\s*path:\s*)"data/quickmind\.db"',
+                    f'\\g<1>"{db_abs}"',
+                    content, flags=re.MULTILINE
+                )
 
-        # .env : creer depuis .env.example + injecter DB_PATH et AION_DATA_DIR
+                # Chemin absolu attachments → appdata/attachments/
+                attach_abs = str(data_dir / "attachments").replace("\\", "/")
+                content = re.sub(
+                    r'(^\s*path:\s*)"data/attachments"',
+                    f'\\g<1>"{attach_abs}"',
+                    content, flags=re.MULTILINE
+                )
+
+                # Toujours écrire config.yaml dans le REPO (QuickMind le lit là)
+                config_file.write_text(content, encoding="utf-8")
+                # ET en copie dans appdata/ pour backup
+                (data_dir / "config.yaml").write_text(content, encoding="utf-8")
+
+                logger.info("config.yaml configure: DB=%s, attachments=%s",
+                            db_abs, attach_abs)
+            except Exception as e:
+                logger.warning("Config QuickMind %s: %s", app_id, e)
+
+        # .env : creer depuis .env.example + injecter DB_PATH ABSOLU vers appdata/
         env_example = root / ".env.example"
         env_file    = root / ".env"
+        # DB dans appdata/ avec chemin absolu (forward slashes pour Python)
         db_env_path = str(data_dir / f"{app_id}.db").replace("\\", "/")
 
         if env_example.exists() and not env_file.exists():
@@ -619,19 +647,42 @@ class AppStore:
 
         if env_file.exists():
             try:
-                lines_env = env_file.read_text(encoding="utf-8").splitlines()
-                keys      = {l.split("=")[0].strip()
-                             for l in lines_env if "=" in l and not l.startswith("#")}
-                extras    = []
-                if "DB_PATH" not in keys:
+                content_env = env_file.read_text(encoding="utf-8")
+                lines_env   = content_env.splitlines()
+                # Construire un dict des clés existantes
+                existing    = {}
+                for l in lines_env:
+                    if "=" in l and not l.startswith("#"):
+                        k, _, v = l.partition("=")
+                        existing[k.strip()] = v.strip()
+
+                # Mettre à jour ou ajouter DB_PATH (chemin absolu)
+                new_lines_env = []
+                db_path_set   = False
+                aion_dir_set  = False
+                for l in lines_env:
+                    if l.startswith("DB_PATH=") or l.startswith("DB_PATH ="):
+                        new_lines_env.append(f"DB_PATH={db_env_path}")
+                        db_path_set = True
+                    elif l.startswith("AION_DATA_DIR="):
+                        new_lines_env.append(f"AION_DATA_DIR={str(data_dir).replace(chr(92), '/')}")
+                        aion_dir_set = True
+                    else:
+                        new_lines_env.append(l)
+
+                # Ajouter si absents
+                extras = []
+                if not db_path_set:
                     extras.append(f"DB_PATH={db_env_path}")
-                if "AION_DATA_DIR" not in keys:
+                if not aion_dir_set:
                     extras.append(f"AION_DATA_DIR={str(data_dir).replace(chr(92), '/')}")
                 if extras:
-                    with open(env_file, "a", encoding="utf-8") as f:
-                        f.write("\n# Added by AION-Core AppStore\n")
-                        f.write("\n".join(extras) + "\n")
-                    logger.info("DB_PATH+AION_DATA_DIR injectes dans .env pour %s", app_id)
+                    new_lines_env.append("")
+                    new_lines_env.append("# Added by AION-Core AppStore — DB dans appdata/")
+                    new_lines_env.extend(extras)
+
+                env_file.write_text("\n".join(new_lines_env), encoding="utf-8")
+                logger.info(".env configure: DB_PATH=%s", db_env_path)
             except Exception as e:
                 logger.warning(".env update %s: %s", app_id, e)
 
