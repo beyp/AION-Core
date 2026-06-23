@@ -178,7 +178,7 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
           </div>
           <div style="background:var(--card);border:1px solid var(--border);
                border-radius:10px;padding:24px;margin-top:16px;">
-            <form id="svc-form" onsubmit="runService(event)">
+            <form id="svc-form" onsubmit="runService(event)" data-svc="{svc_name}" data-action="{action}">
               {fields_html}
               <button type="submit" class="btn-primary" style="margin-top:8px;">
                 ▶ Calculer
@@ -202,14 +202,15 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
           var res = document.getElementById('svc-result');
           res.style.display = 'block';
           res.innerHTML = '<p style="color:#888;">⏳ Calcul en cours...</p>';
-          fetch('/services/{svc_name}/run', {{
+          var svcName = form.getAttribute('data-svc');
+          var svcAction = form.getAttribute('data-action');
+          fetch('/services/' + svcName + '/run', {{
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
-            body: JSON.stringify({{action: '{action}', params: data}})
+            body: JSON.stringify({{action: svcAction, params: data}})
           }}).then(r => r.json()).then(d => {{
-            if (d.success) {{
-              var msg = d.message.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-                                  .replace(/\n/g, '<br>');
+              var msg = (d.message||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                                       .replace(/\n/g, '<br>');
               res.innerHTML = '<div style="border-left:3px solid #4caf50;padding-left:16px;">' +
                 '<p style="color:#4caf50;font-weight:600;margin-bottom:10px;">✅ Résultat</p>' +
                 '<div style="line-height:1.8;font-size:.92rem;">' + msg + '</div></div>';
@@ -229,7 +230,7 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
     )
     return f"""
         <div style="max-width:680px;">
-          <h2 style="font-size:1.2rem;margin-bottom:8px;">⚡ {svc_name}</h2>
+          <h2 style="font-size:1.2rem;margin-bottom:8px;" id="gen-svc-title">⚡ Service</h2>
           <p style="color:#888;margin-bottom:20px;">{desc}</p>
           <div style="background:var(--card);border:1px solid var(--border);
                border-radius:10px;padding:24px;">
@@ -246,6 +247,7 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
         </div>
         <script>
         function runGeneric(action) {{
+          var svcName = window.location.pathname.split('/').filter(Boolean)[1];
           var raw = document.getElementById('gen-params').value.trim();
           var params = {{}};
           if(raw) try {{ params = JSON.parse(raw); }} catch(e) {{
@@ -254,7 +256,7 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
           var res = document.getElementById('svc-result');
           res.style.display = 'block';
           res.innerHTML = '<p style="color:#888;">⏳ Exécution...</p>';
-          fetch('/services/{svc_name}/run', {{
+          fetch('/services/' + svcName + '/run', {{
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
             body: JSON.stringify({{action: action, params: params}})
