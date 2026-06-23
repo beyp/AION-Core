@@ -940,17 +940,16 @@ function openConfig(id) {{
         html += "<div style='font-size:.78rem;color:#888;margin-bottom:6px;display:flex;justify-content:space-between;'>";
         html += "<strong style='color:#e0e0e0;'>"+fname+"</strong>";
         html += "<span>"+loc+"</span></div>";
-        fdata.fields.forEach(function(f) {{
           var emptyStyle = f.empty
             ? "border-color:#f44336;background:rgba(244,67,54,.05);"
-            : "border-color:#2a2d3e;";
+            : (f.shared ? "border-color:#1e90ff44;" : "border-color:#2a2d3e;");
           var inputType = f.sensitive ? "password" : "text";
           var placeholder = f.empty ? "⚠️ Non configuré" : "";
           var inputId = "inp_" + fname.replace(/[^a-z0-9]/gi,"_") + "_" + f.key.replace(/[^a-z0-9]/gi,"_");
-          html += "<div style='display:flex;align-items:center;gap:8px;margin-bottom:6px;'>";
-          html += "<label style='width:180px;font-size:.78rem;color:" +
-            (f.empty ? "#f44336" : "#888") + ";flex-shrink:0;overflow:hidden;" +
-            "text-overflow:ellipsis;white-space:nowrap;' title='"+f.key+"'>"+f.key+"</label>";
+          html += "<div style='display:flex;align-items:center;gap:6px;margin-bottom:6px;'>";
+          var labelColor = f.empty ? "#f44336" : (f.shared ? "#1e90ff" : "#888");
+          var sharedBadge = f.shared ? "<span title='Valeur partagee AION' style='font-size:.65rem;background:rgba(30,144,255,.15);color:#1e90ff;padding:1px 5px;border-radius:4px;margin-left:4px;'>&#x1F517; AION</span>" : "";
+          html += "<label style='width:160px;font-size:.78rem;color:"+labelColor+";flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;' title='"+f.key+"'>" + f.key + sharedBadge + "</label>";
           html += "<input id='"+inputId+"' type='"+inputType+"' value='"+(f.sensitive && !f.empty ? "••••••" : f.value.replace(/'/g, "&#39;"))+"'" +
             " data-key='"+f.key+"' data-file='"+fname+"' data-app='"+id+"'" +
             " data-sensitive='"+f.sensitive+"' data-realvalue='"+f.value.replace(/'/g, "&#39;")+"'" +
@@ -964,6 +963,13 @@ function openConfig(id) {{
               " style='background:none;border:1px solid #2a2d3e;border-radius:5px;" +
               "padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;'>&#128065;</button>";
           }}
+          if (f.shared && f.inheritable) {{
+            html += "<button type='button' data-inherit-key='"+f.key+"' data-inherit-file='"+fname+"'" +
+              " class='btn-inherit-shared' title='Heriter depuis AION shared.env'" +
+              " style='background:rgba(30,144,255,.1);border:1px solid #1e90ff44;border-radius:5px;" +
+              "padding:4px 7px;cursor:pointer;color:#1e90ff;font-size:.75rem;flex-shrink:0;'>&#x21A9; Heriter</button>";
+          }}
+          html += "</div>";
           html += "</div>";
         }});
         html += "</div>";
@@ -980,6 +986,27 @@ function markChanged(input) {{
   input.style.borderColor = "#ff9800";
   input.dataset.changed = "1";
 }}
+
+document.addEventListener('click', function(e) {{
+  var inh = e.target.closest('.btn-inherit-shared');
+  if (inh) {{
+    var key   = inh.getAttribute('data-inherit-key');
+    var appId = document.getElementById('config-title').textContent.split(': ')[1];
+    fetch('/api/store/' + appId + '/config/inherit', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{keys: [key]}})
+    }}).then(r => r.json()).then(d => {{
+      var res = document.getElementById('config-save-result');
+      if (res) {{
+        res.style.color = d.success ? '#4caf50' : '#f44336';
+        res.textContent = d.success ? '\u2705 ' + key + ' herite depuis AION' : d.message;
+      }}
+      if (d.success) setTimeout(function(){{ openConfig(appId); }}, 800);
+    }});
+    return;
+  }}
+}});
 
 document.addEventListener('click', function(e) {{
   var btn = e.target.closest('.btn-toggle-secret');
