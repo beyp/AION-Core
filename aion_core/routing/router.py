@@ -19,6 +19,7 @@ Apps disponibles :
 - timer      : compte a rebours avec notification
 - memory     : memoire AION (remember, recall, forget, list, import_json, stats)
 - appctl     : controle des apps (start, stop, status, list_apps)
+- services   : micro-services AION (calcul capacité, actions système, etc.)
 - search     : recherche dans plusieurs apps simultanement
 - direct     : repondre directement sans app
 
@@ -176,6 +177,8 @@ class AppRouter:
             result_text = self._handle_memory(action, params)
         elif app_name == "appctl":
             result_text = self._handle_appctl(action, params)
+        elif app_name == "services":
+            result_text = self._handle_services(action, params)
 
         # 3. Construire la réponse finale
         final_response = voice_hint
@@ -457,6 +460,22 @@ class AppRouter:
             return f"Restart {app_id}: {stop_r} → {start_r}"
 
         return f"Action appctl inconnue: '{action}'. Actions: start, stop, status, list_apps, restart"
+
+    def _handle_services(self, service_name: str, params: dict) -> str:
+        """Délègue vers AION-Services (port 8001)."""
+        import os, requests as _req
+        port   = int(os.getenv("AION_SERVICES_PORT", "8001"))
+        action = params.pop("action", service_name) if isinstance(params, dict) else service_name
+        # Le router envoie app=services, action=capacity_calc, params={...}
+        # On redirige vers POST /api/services/{action}/{sub_action}
+        sub    = params.pop("sub_action", "calculate") if isinstance(params, dict) else "calculate"
+        url    = f"http://localhost:{port}/api/services/{action}/{sub}"
+        try:
+            r = _req.post(url, json=params, timeout=10)
+            d = r.json()
+            return d.get("message", str(d))
+        except Exception as e:
+            return f"AION-Services indisponible: {e}"
 
     @property
     def available_apps(self) -> list[str]:
