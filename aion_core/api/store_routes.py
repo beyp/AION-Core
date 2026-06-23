@@ -929,8 +929,24 @@ function openConfig(id) {{
       var html = "";
       if (d.has_empty) {{
         html += "<div style='background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);" +
-          "border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:#f44336;'>" +
-          "&#x26A0;&#xFE0F; " + d.empty_count + " cle(s) non configuree(s)</div>";
+          "border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.8rem;color:#f44336;" +
+          "display:flex;align-items:center;gap:8px;'>" +
+          "<span style='flex:1;'>&#x26A0;&#xFE0F; " + d.empty_count + " cle(s) non configuree(s)</span>" +
+          "<button onclick=\"inheritAllFromAion(document.getElementById('config-title').textContent.split(': ')[1])\"" +
+          " style='background:#1e90ff;color:#fff;border:none;padding:5px 12px;border-radius:5px;" +
+          "cursor:pointer;font-size:.78rem;font-weight:600;white-space:nowrap;flex-shrink:0;'>" +
+          "&#x1F517; Heriter tout depuis AION</button>" +
+          "</div>";
+      }} else {{
+        html += "<div style='background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);" +
+          "border-radius:6px;padding:6px 12px;margin-bottom:10px;font-size:.8rem;color:#4caf50;" +
+          "display:flex;align-items:center;gap:8px;'>" +
+          "<span style='flex:1;'>&#x2705; Configuration OK</span>" +
+          "<button onclick=\"inheritAllFromAion(document.getElementById('config-title').textContent.split(': ')[1])\"" +
+          " style='background:transparent;border:1px solid #1e90ff55;color:#1e90ff;padding:4px 10px;" +
+          "border-radius:5px;cursor:pointer;font-size:.75rem;white-space:nowrap;flex-shrink:0;'>" +
+          "&#x1F517; Synchro AION</button>" +
+          "</div>";
       }}
       Object.entries(d.files).forEach(function(entry) {{
         var fname  = entry[0];
@@ -964,11 +980,13 @@ function openConfig(id) {{
               " style='background:none;border:1px solid #2a2d3e;border-radius:5px;" +
               "padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;'>&#128065;</button>";
           }}
-          if (f.shared && f.inheritable) {{
+          if (f.shared) {{
             html += "<button type='button' data-inherit-key='"+f.key+"' data-inherit-file='"+fname+"'" +
-              " class='btn-inherit-shared' title='Heriter depuis AION shared.env'" +
-              " style='background:rgba(30,144,255,.1);border:1px solid #1e90ff44;border-radius:5px;" +
-              "padding:4px 7px;cursor:pointer;color:#1e90ff;font-size:.75rem;flex-shrink:0;'>&#x21A9; Heriter</button>";
+              " class='btn-inherit-shared'" +
+              " title='Cliquer pour heriter la valeur depuis AION-Core (shared.env)'" +
+              " style='background:rgba(30,144,255,.15);border:1px solid #1e90ff55;border-radius:5px;" +
+              "padding:4px 7px;cursor:pointer;color:#1e90ff;font-size:.75rem;flex-shrink:0;" +
+              "white-space:nowrap;'>&#x21A9; AION</button>";
           }}
           html += "</div>";
           html += "</div>";
@@ -988,22 +1006,46 @@ function markChanged(input) {{
   input.dataset.changed = "1";
 }}
 
+function inheritAllFromAion(appId) {{
+  var res = document.getElementById('config-save-result');
+  if (res) {{ res.style.color='#ff9800'; res.textContent='\u23f3 Heritage depuis AION en cours...'; }}
+  fetch('/api/store/' + appId + '/config/inherit', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{keys: null}})  // null = toutes les cles partagees
+  }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    if (res) {{
+      res.style.color = d.success ? '#4caf50' : '#f44336';
+      var propagated = d.propagated && d.propagated.length ? d.propagated.join(', ') : '';
+      res.textContent = d.success
+        ? '\u2705 ' + (d.propagated||[]).length + ' cle(s) heritee(s) depuis AION' + (propagated ? ': ' + propagated : '')
+        : (d.message || 'Erreur heritage');
+    }}
+    if (d.success) setTimeout(function(){{ openConfig(appId); }}, 1200);
+  }}).catch(function(e) {{
+    if (res) {{ res.style.color='#f44336'; res.textContent='Erreur: '+e; }}
+  }});
+}}
+
 document.addEventListener('click', function(e) {{
   var inh = e.target.closest('.btn-inherit-shared');
   if (inh) {{
     var key   = inh.getAttribute('data-inherit-key');
     var appId = document.getElementById('config-title').textContent.split(': ')[1];
+    var res   = document.getElementById('config-save-result');
+    if (res) {{ res.style.color='#ff9800'; res.textContent='\u23f3 Heritage '+key+'...'; }}
     fetch('/api/store/' + appId + '/config/inherit', {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
       body: JSON.stringify({{keys: [key]}})
-    }}).then(r => r.json()).then(d => {{
-      var res = document.getElementById('config-save-result');
+    }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
       if (res) {{
         res.style.color = d.success ? '#4caf50' : '#f44336';
-        res.textContent = d.success ? '\u2705 ' + key + ' herite depuis AION' : d.message;
+        res.textContent = d.success ? '\u2705 ' + key + ' herite depuis AION' : (d.message || 'Erreur');
       }}
       if (d.success) setTimeout(function(){{ openConfig(appId); }}, 800);
+    }}).catch(function(e) {{
+      if (res) {{ res.style.color='#f44336'; res.textContent='Erreur: '+e; }}
     }});
     return;
   }}
