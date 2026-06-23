@@ -119,6 +119,20 @@ def _page_end() -> str:
 
 # ── Formulaires par service ────────────────────────────────────────────────────
 SERVICE_FORMS = {
+    "system_power": {
+        "title":       "Controle Alimentation Windows",
+        "icon":        "🔌",
+        "description": "Veille, arret, redemarrage.",
+        "action":      "sleep",
+        "fields": [
+            {"id": "action_type", "label": "Action",
+             "type": "select", "options": ["sleep", "shutdown", "reboot", "cancel", "status"],
+             "required": True, "placeholder": ""},
+            {"id": "delay_min", "label": "Delai minutes (0=immediat)",
+             "type": "number", "placeholder": "0", "required": False,
+             "value": "0", "min": "0", "step": "1"},
+        ]
+    },
     "capacity_calc": {
         "title":       "Calcul de Capacité Projet",
         "icon":        "📊",
@@ -154,18 +168,21 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
         action = form_def["action"]
         fields_html = ""
         for f in form_def["fields"]:
-            req   = "required" if f.get("required") else ""
-            val   = f'value="{f["value"]}"' if f.get("value") else ""
-            minv  = f'min="{f["min"]}"' if f.get("min") else ""
-            step  = f'step="{f["step"]}"' if f.get("step") else ""
-            fields_html += f"""
-            <div style="margin-bottom:16px;">
-              <label style="display:block;font-size:.82rem;color:#888;margin-bottom:6px;">
-                {f["label"]} {'<span style="color:#f44336;">*</span>' if f.get("required") else ""}
-              </label>
-              <input type="{f["type"]}" id="{f["id"]}" name="{f["id"]}"
-                     placeholder="{f["placeholder"]}" {req} {val} {minv} {step}>
-            </div>"""
+            fid  = f["id"]
+            freq = "required" if f.get("required") else ""
+            rstar = '<span style="color:#f44336;">*</span>' if f.get("required") else ""
+            lbl  = f'<label style="display:block;font-size:.82rem;color:#888;margin-bottom:6px;">{f.get("label",fid)} {rstar}</label>'
+            if f.get("type") == "select":
+                opts = "".join(f'<option value="{o}">{o}</option>' for o in f.get("options",[]))
+                js   = f"document.getElementById('svc-form').setAttribute('data-action',this.value);"
+                inp  = f'<select id="{fid}" name="{fid}" {freq} onchange="{js}">{opts}</select>'
+            else:
+                xval  = f'value="{f["value"]}"' if f.get("value") not in (None,"") else ""
+                xmin  = f'min="{f["min"]}"' if f.get("min") not in (None,"") else ""
+                xstep = f'step="{f["step"]}"' if f.get("step") not in (None,"") else ""
+                xph   = f.get("placeholder","") or ""
+                inp   = f'<input type="{f.get("type","text")}" id="{fid}" name="{fid}" placeholder="{xph}" {freq} {xval} {xmin} {xstep}>'
+            fields_html += f'<div style="margin-bottom:16px;">{lbl}{inp}</div>'
 
         return f"""
         <div style="max-width:680px;">
