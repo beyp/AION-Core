@@ -880,12 +880,10 @@ function openConfig(id) {{
             "color:#e0e0e0;padding:5px 10px;border-radius:5px;font-size:.82rem;'" +
             " onchange='markChanged(this)'>";
           if (f.sensitive) {{
-            html += "<button type='button' onclick='toggleSecret(\"" + inputId + "\")'"+
-              " title='Afficher / Masquer'"+
-              " style='background:none;border:1px solid #2a2d3e;border-radius:5px;"+
-              "padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;"+
-              "transition:border-color .2s;'>"+
-              "&#128065;</button>";
+            html += "<button type='button' data-toggle-input='"+inputId+"'" +
+              " class='btn-toggle-secret' title='Afficher / Masquer'" +
+              " style='background:none;border:1px solid #2a2d3e;border-radius:5px;" +
+              "padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;'>&#128065;</button>";
           }}
           html += "</div>";
         }});
@@ -904,20 +902,22 @@ function markChanged(input) {{
   input.dataset.changed = "1";
 }}
 
-function toggleSecret(inputId) {{
+document.addEventListener('click', function(e) {{
+  var btn = e.target.closest('.btn-toggle-secret');
+  if (!btn) return;
+  var inputId = btn.getAttribute('data-toggle-input');
   var inp = document.getElementById(inputId);
   if (!inp) return;
-  var btn = inp.nextElementSibling;
-  if (inp.type === "password") {{
-    inp.type = "text";
-    var real = inp.dataset.realvalue || "";
-    if (inp.value === "••••••") inp.value = real;
-    if (btn) btn.style.color = "#1E90FF";
+  if (inp.type === 'password') {{
+    inp.type = 'text';
+    var real = inp.dataset.realvalue || '';
+    if (inp.value === '••••••') inp.value = real;
+    btn.style.color = '#1E90FF';
   }} else {{
-    inp.type = "password";
-    if (btn) btn.style.color = "#888";
+    inp.type = 'password';
+    btn.style.color = '#888';
   }}
-}}
+}})
 
 function saveConfig(id) {{
   var inputs  = document.querySelectorAll("[data-app='"+id+"'][data-changed='1']");
