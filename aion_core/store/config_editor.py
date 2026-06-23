@@ -20,7 +20,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Valeurs considerees comme "non remplies" (placeholders)
+# Valeurs considerees comme 'non remplies' (placeholders)
 EMPTY_PLACEHOLDERS = {
     "", "your_key_here", "your_pat_here", "your_secret_key_change_me",
     "gsk_your_key_here", "change_me", "todo", "xxx", "your_token_here",
@@ -64,11 +64,9 @@ class ConfigEditor:
         Cherche un fichier de config.
         Priorite : appdata/ > install_path/
         """
-        # 1. Dans appdata/ (source de verite, git-ignore)
         p = self.appdata_path / filename
         if p.exists():
             return p
-        # 2. Dans le repo installe
         p = self.install_path / filename
         if p.exists():
             return p
@@ -89,22 +87,12 @@ class ConfigEditor:
                 logger.info("Config copie dans appdata/: %s", dest)
         return dest
 
-    # ── Lecture ───────────────────────────────────────────────────
+    # -- Lecture --------------------------------------------------
 
     def read_all(self) -> dict:
         """
         Lit toutes les configs (yaml + env).
         Retourne un dict structure pour l'UI.
-
-        Returns:
-            {
-                "files": {
-                    "config.yaml": {"fields": [...], "path": str},
-                    ".env":        {"fields": [...], "path": str},
-                },
-                "has_empty": bool,
-                "empty_count": int,
-            }
         """
         result    = {"files": {}, "has_empty": False, "empty_count": 0}
         cfg_files = ["config.yaml", "config.yml", ".env"]
@@ -136,15 +124,13 @@ class ConfigEditor:
         """Parse un fichier YAML et retourne les champs plats."""
         try:
             import yaml
-            with open(path, encoding="utf-8") as f:
+            with open(path, encoding='utf-8') as f:
                 data = yaml.safe_load(f) or {}
         except ImportError:
-            # Fallback sans PyYAML : lecture ligne par ligne
             return self._parse_yaml_simple(path)
         except Exception as e:
             logger.warning("YAML parse error %s: %s", path, e)
             return []
-
         return self._flatten_yaml(data, prefix="")
 
     def _flatten_yaml(self, data: dict, prefix: str) -> list[dict]:
@@ -168,13 +154,14 @@ class ConfigEditor:
         """Parse YAML basique ligne par ligne (sans PyYAML)."""
         fields = []
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
+            lines = path.read_text(encoding='utf-8').splitlines()
             for line in lines:
                 line = line.strip()
                 if line.startswith("#") or ":" not in line:
                     continue
                 k, _, v = line.partition(":")
-                k = k.strip(); v = v.strip().strip('"\'')
+                k = k.strip()
+                v = v.strip().strip('"\'')
                 if k:
                     fields.append({
                         "key":       k,
@@ -191,7 +178,7 @@ class ConfigEditor:
         """Parse un fichier .env et retourne les champs."""
         fields = []
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
+            lines = path.read_text(encoding='utf-8').splitlines()
             for line in lines:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -199,7 +186,8 @@ class ConfigEditor:
                 if "=" not in line:
                     continue
                 k, _, v = line.partition("=")
-                k = k.strip(); v = v.strip()
+                k = k.strip()
+                v = v.strip()
                 fields.append({
                     "key":       k,
                     "value":     v,
@@ -211,7 +199,7 @@ class ConfigEditor:
             logger.warning(".env parse %s: %s", path, e)
         return fields
 
-    # ── Écriture ──────────────────────────────────────────────────
+    # -- Ecriture -------------------------------------------------
 
     def save_field(self, filename: str, key: str, value: str) -> dict:
         """
@@ -226,11 +214,10 @@ class ConfigEditor:
         Returns:
             {"success": bool, "message": str, "path": str}
         """
-        # S'assurer que le fichier est dans appdata/
         dest = self._ensure_in_appdata(filename)
         if not dest.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text("", encoding="utf-8")
+            dest.write_text('', encoding='utf-8')
 
         try:
             if filename.endswith((".yaml", ".yml")):
@@ -238,42 +225,56 @@ class ConfigEditor:
             else:
                 return self._save_env_field(dest, key, value)
         except Exception as e:
+            logger.error("save_field error [%s] %s: %s", filename, key, e)
             return {"success": False, "message": str(e), "path": str(dest)}
 
     def _save_yaml_field(self, path: Path, key: str, value: str) -> dict:
-        """Met a jour une cle dans un fichier YAML (edition texte)."""
-        content = path.read_text(encoding="utf-8")
-        # Cle simple ou imbriquee (ex: updater.github_token)
-        leaf_key = key.split(".")[-1]
-        # Remplacer la valeur dans le fichier
+        """Met a jour une cle dans un fichier YAML (edition texte).
+
+        Supporte les cles imbriquees (ex: updater.github_token).
+        Utilise re.subn pour remplacer en place, ou ajoute a la fin si absent.
+        """
+        content = path.read_text(encoding='utf-8')
+        leaf_key = key.split('.')[-1]
+        # Echapper la valeur : guillemets si contient des caracteres speciaux
+        if re.match(r'^[\w\-\./:@]+$', value):
+            safe_value = value
+        else:
+            safe_value = f'"{value}"'
         pattern = rf'(^\s*{re.escape(leaf_key)}\s*:\s*)(.*)$'
-        repl_v = value
+        new_content, n = re.subn(
+            pattern,
+            lambda m: m.group(1) + safe_value,
+            content,
+            flags=re.MULTILINE,
+        )
         if n == 0:
-            # Cle non trouvee : ajouter a la fin
-            new_content = content.rstrip() + f'\n{leaf_key}: "{value}"\n'
-        path.write_text(new_content, encoding="utf-8")
-        # Synchroniser aussi dans install_path/ pour que l'app la lise
+            new_content = content.rstrip() + f'\n{leaf_key}: {safe_value}\n'
+        path.write_text(new_content, encoding='utf-8')
+        # Synchroniser dans install_path/ pour que l'app lise la valeur
         install_copy = self.install_path / path.name
-        if install_copy != path:
-            install_copy.write_text(new_content, encoding="utf-8")
-        return {"success": True, "message": f"{key} mis a jour",
-                "path": str(path)}
+        if install_copy.resolve() != path.resolve() and install_copy.parent.exists():
+            install_copy.write_text(new_content, encoding='utf-8')
+        return {"success": True, "message": f"{key} mis a jour", "path": str(path)}
 
     def _save_env_field(self, path: Path, key: str, value: str) -> dict:
         """Met a jour ou ajoute une cle dans un fichier .env."""
-        content = path.read_text(encoding="utf-8")
+        content = path.read_text(encoding='utf-8')
         pattern = rf'(^{re.escape(key)}\s*=)(.*)$'
-        repl_v = str(value)
-        new_content, n = re.subn(pattern, lambda m: m.group(1) + repl_v, content, flags=re.MULTILINE)
+        new_content, n = re.subn(
+            pattern,
+            lambda m: m.group(1) + str(value),
+            content,
+            flags=re.MULTILINE,
+        )
         if n == 0:
             new_content = content.rstrip() + f'\n{key}={value}\n'
-        path.write_text(new_content, encoding="utf-8")
-        # Synchroniser aussi dans install_path/
-        install_copy = self.install_path / ".env"
-        if install_copy != path:
-            install_copy.write_text(new_content, encoding="utf-8")
-        return {"success": True, "message": f"{key} mis a jour",
-                "path": str(path)}
+        path.write_text(new_content, encoding='utf-8')
+        # Synchroniser dans install_path/
+        install_copy = self.install_path / '.env'
+        if install_copy.resolve() != path.resolve() and install_copy.parent.exists():
+            install_copy.write_text(new_content, encoding='utf-8')
+        return {"success": True, "message": f"{key} mis a jour", "path": str(path)}
 
     def save_all_fields(self, updates: dict[str, dict[str, str]]) -> dict:
         """
@@ -285,8 +286,8 @@ class ConfigEditor:
             for key, value in fields.items():
                 r = self.save_field(filename, key, value)
                 results.append(r)
-        ok    = all(r["success"] for r in results)
-        saved = sum(1 for r in results if r["success"])
+        ok    = all(r['success'] for r in results)
+        saved = sum(1 for r in results if r['success'])
         return {
             "success": ok,
             "saved":   saved,
