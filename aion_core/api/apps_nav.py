@@ -72,7 +72,7 @@ def register_nav_routes(app, aion_app):
 
     @app.get("/api/nav/apps/sidebar", response_class=HTMLResponse)
     async def nav_sidebar_fragment():
-        """Fragment HTML htmx pour la sidebar -- injecte dynamiquement les apps."""
+        """Fragment HTML htmx pour la sidebar — apps + services."""
         registry   = _load_registry()
         items_html = []
         for app_id, cfg in registry.get("apps", {}).items():
@@ -89,6 +89,31 @@ def register_nav_routes(app, aion_app):
                 f'<span class="nav-dot" id="dot-{app_id}"></span>'
                 f'</a>'
             )
+
+        # Section Services
+        try:
+            import requests as _req, os as _os
+            svc_port = int(_os.getenv("AION_SERVICES_PORT", "8001"))
+            r = _req.get(f"http://localhost:{svc_port}/api/services", timeout=1.0)
+            services = r.json().get("services", []) if r.status_code == 200 else []
+        except Exception:
+            services = []
+
+        if services:
+            items_html.append(
+                '<div class="sb-sec" style="margin-top:12px;">'
+                '⚡ Services</div>'
+            )
+            for svc in services:
+                svc_id = svc["name"]
+                svc_name = svc.get("name", svc_id).replace("_", " ").title()
+                items_html.append(
+                    f'<a href="/services/{svc_id}" class="nav-item" id="nav-svc-{svc_id}">'
+                    f'<span class="nav-icon">⚡</span>'
+                    f'<span class="nav-label">{svc_name}</span>'
+                    f'</a>'
+                )
+
         return HTMLResponse("\n".join(items_html))
 
     @app.get("/api/nav/apps/status", response_class=HTMLResponse)
