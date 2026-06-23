@@ -103,64 +103,92 @@ class AppSetup:
 
     def _pip_install(self) -> dict:
         """
-        pip install dans le venv.
+        pip install dans le venv -- installe TOUS les requirements*.txt trouves.
 
-        Ordre de priorite des fichiers requirements :
-          1. requirements.api.txt  (mode headless/API sans GUI — ex: QuickMind)
-          2. requirements.txt      (requirements complets)
+        Strategie :
+          1. Scan tous les requirements*.txt dans le repo
+          2. Ordre : requirements.api.txt en premier (API headless sans GUI),
+             puis requirements.txt, puis les autres
+          3. Chaque fichier installe separement
+          4. Non-bloquant si un seul fichier echoue
 
-        requirements.api.txt est prefere car il inclut fastapi+uvicorn
-        sans les dependances GUI (customtkinter, pywin32...) qui peuvent
-        planter en mode serveur headless.
+        Exemples detectes automatiquement :
+          - requirements.api.txt   (QuickMind API headless - priorite)
+          - requirements.txt       (base)
+          - requirements_prod.txt  (prod)
         """
-        # Chercher le bon fichier requirements dans l'ordre de priorite
-        candidates = [
-            ("requirements.api.txt",  "mode API (sans GUI)"),
-            ("requirements.txt",      "requirements complet"),
-        ]
-
-        req_file = None
-        req_label = ""
-        for fname, label in candidates:
-            candidate = self.install_path / fname
-            if candidate.exists():
-                req_file  = candidate
-                req_label = label
-                break
-
-        if req_file is None:
-            return {"name": "pip", "success": True,
-                    "message": "Aucun requirements*.txt trouve — skip pip install"}
-
         if not self.venv_pip.exists():
             return {"name": "pip", "success": False,
-                    "message": f"pip introuvable dans le venv ({self.venv_pip})"}
+                    "message": f"pip introuvable dans {self.venv_pip}"}
 
-        logger.info("pip install %s pour %s (%s)...",
-                    req_file.name, self.app_id, req_label)
-        try:
-            result = subprocess.run(
-                [str(self.venv_pip), "install", "-r", str(req_file), "--quiet"],
-                cwd=str(self.install_path),
-                capture_output=True, text=True,
-                encoding="utf-8", errors="replace",
-                timeout=300
-            )
-            if result.returncode != 0:
-                err = (result.stderr or result.stdout or "").strip()[:400]
-                return {"name": "pip", "success": False,
-                        "message": f"Erreur pip ({req_file.name}): {err}",
-                        "req_file": str(req_file)}
-            logger.info("pip install OK pour %s via %s", self.app_id, req_file.name)
+        # Scanner tous les requirements*.txt (skip dev/test/lint)
+        skip_patterns = {"dev", "test", "lint", "docs", "build"}
+        all_req = []
+
+        for f in sorted(self.install_path.glob("requirements*.txt")):
+            n = f.name.lower()
+            if any(s in n for s in skip_patterns):
+                logger.info("pip: ignore %s", f.name)
+                continue
+            all_req.append(f)
+
+        # Chercher aussi dans sous-dossier requirements/
+        req_dir = self.install_path / "requirements"
+        if req_dir.is_dir():
+            for f in sorted(req_dir.glob("*.txt")):
+                if not any(s in f.name.lower() for s in skip_patterns):
+                    all_req.append(f)
+
+        if not all_req:
             return {"name": "pip", "success": True,
-                    "message": f"Dependances installees via {req_file.name} ({req_label})",
-                    "req_file": str(req_file)}
-        except subprocess.TimeoutExpired:
-            return {"name": "pip", "success": False,
-                    "message": f"Timeout pip >5 min ({req_file.name})"}
-        except Exception as e:
-            return {"name": "pip", "success": False, "message": str(e)}
+                    "message": "Aucun requirements*.txt trouve -- skip"}
 
+        # Trier : .api.txt en premier, puis requirements.txt, puis reste
+        def sort_key(p):
+            n = p.name.lower()
+            if "api" in n:              return 0
+            if n == "requirements.txt": return 1
+            return 2
+
+        all_req.sort(key=sort_key)
+        logger.info("pip: %d fichier(s) pour %s: %s",
+                    len(all_req), self.app_id, [f.name for f in all_req])
+
+        installed, errors = [], []
+        for req_file in all_req:
+            logger.info("pip install -r %s ...", req_file.name)
+            try:
+                r = subprocess.run(
+                    [str(self.venv_pip), "install", "-r", str(req_file), "--quiet"],
+                    cwd=str(self.install_path),
+                    capture_output=True, text=True,
+                    encoding="utf-8", errors="replace",
+                    timeout=300,
+                )
+                if r.returncode == 0:
+                    installed.append(req_file.name)
+                    logger.info("pip OK: %s", req_file.name)
+                else:
+                    err = (r.stderr or r.stdout or "").strip()[:200]
+                    errors.append(f"{req_file.name}: {err}")
+                    logger.warning("pip WARN %s: %s", req_file.name, err[:80])
+            except subprocess.TimeoutExpired:
+                errors.append(f"{req_file.name}: timeout >5min")
+            except Exception as e:
+                errors.append(f"{req_file.name}: {e}")
+
+        success = len(installed) > 0
+        msg     = f"pip: {len(installed)}/{len(all_req)} fichier(s) OK ({', '.join(installed)})"
+        if errors:
+            msg += f" | Warn: {'; '.join(errors[:2])}"
+
+        return {
+            "name":      "pip",
+            "success":   success,
+            "message":   msg,
+            "installed": installed,
+            "errors":    errors,
+        }
     def _init_appdata(self, appdata_files: list[str]) -> dict:
         """
         Copie initiale des fichiers data/ -> appdata/.
