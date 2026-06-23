@@ -333,8 +333,14 @@ def create_app(aion_app) -> FastAPI:
         from pathlib import Path as _Path
         from fastapi.responses import HTMLResponse as _HTMLResponse
 
-        reg_file = _Path("apps.json")
-        registry = _json.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {}
+        registry = {"apps": {}}
+        for rf in [_Path("apps.json"), _Path("apps.local.json")]:
+            if rf.exists():
+                try:
+                    data = _json.loads(rf.read_text(encoding="utf-8"))
+                    registry["apps"].update(data.get("apps", {}))
+                except Exception:
+                    pass
 
         icons = {
             "check":     "\u2705",
@@ -490,6 +496,14 @@ def create_app(aion_app) -> FastAPI:
         register_discovery_routes(app, aion_app)
     except Exception as _e:
         logger.warning("Discovery routes: %s", _e)
+
+    # 6. Services routes (AION-Services UI intégrée)
+    try:
+        from aion_core.api.services_routes import register_services_routes
+        register_services_routes(app, aion_app)
+        logger.info("Services routes OK")
+    except Exception as _e:
+        logger.warning("Services routes: %s", _e)
 
     return app
 
