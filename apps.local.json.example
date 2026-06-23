@@ -12,7 +12,8 @@
     "QuickMind_entry": "run_api.py — lance core.api_server:app (FastAPI headless, port 8765)",
     "QuickMind_DB": "config.yaml -> database.path. Copier config.yaml dans appdata/ pour persister.",
     "ProjectMind_entry": "main.py — FastAPI natif avec if __name__ block (port 8766)",
-    "ProjectMind_DB": "Variable DB_PATH dans .env -> C:/AION_APPS/appdata/projectmind/projectmind.db"
+    "ProjectMind_DB": "Variable DB_PATH dans .env -> C:/AION_APPS/appdata/projectmind/projectmind.db",
+    "shared_keys": "Déclarer les clés partagées avec AION-Core dans 'shared_keys'. Celles-ci peuvent être héritées depuis data/shared.env via le bouton Hériter dans Config."
   },
   "version": "1.0",
   "apps": {
@@ -54,7 +55,11 @@
         "github": "beyp/QuickMind",
         "installed_at": "",
         "last_update": ""
-      }
+      },
+      "shared_keys": [
+        "GROQ_API_KEY",
+        "GROQ_MODEL"
+      ]
     },
     "projectmind": {
       "name": "ProjectMind",
@@ -95,7 +100,13 @@
         "github": "beyp/ProjectMind",
         "installed_at": "",
         "last_update": ""
-      }
+      },
+      "shared_keys": [
+        "GROQ_API_KEY",
+        "GROQ_MODEL",
+        "ADO_PAT",
+        "ADO_ORG"
+      ]
     }
   }
 }
