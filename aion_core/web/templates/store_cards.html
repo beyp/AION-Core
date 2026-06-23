@@ -1,0 +1,86 @@
+{% if apps %}
+{% for app in apps %}
+<div class="app-card">
+  <div class="app-card-header">
+    <div style="flex:1;">
+      <div style="font-weight:600;font-size:.95rem;">{{ app.name }}</div>
+      {% if app.github %}
+      <a href="https://github.com/{{ app.github }}" target="_blank"
+         style="color:#1e90ff;font-size:.8rem;">{{ app.github }} &#x2197;</a>
+      {% endif %}
+    </div>
+    {% if app.is_cloned %}
+    <span style="color:#4caf50;font-weight:600;">&#x2705; Installé</span>
+    {% else %}
+    <span style="color:#f44336;font-weight:600;">&#x274C; Non cloné</span>
+    {% endif %}
+  </div>
+
+  <!-- Infos -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;
+       font-size:.8rem;color:#888;margin-bottom:8px;">
+    <div>Mis à jour : <span style="color:#ccc;">{{ app.last_update or "—" }}</span></div>
+    <div>Backups : <span style="color:#ccc;">{{ app.backups|length }}</span></div>
+  </div>
+
+  <!-- Appdata files -->
+  {% if app.appdata_files %}
+  <div style="margin-bottom:10px;">
+    <div style="font-size:.75rem;color:#888;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+      Fichiers persistants
+      {% if app.auto_detected %}
+      <span style="font-size:.68rem;background:rgba(30,144,255,.2);color:#1e90ff;
+            padding:1px 5px;border-radius:8px;">auto</span>
+      {% else %}
+      <span style="font-size:.68rem;background:rgba(255,152,0,.2);color:#ff9800;
+            padding:1px 5px;border-radius:8px;">manuel</span>
+      {% endif %}
+    </div>
+    <div style="background:#0f1117;border-radius:6px;padding:6px 10px;">
+      {% for f in app.appdata_files %}
+      <div style="font-size:.8rem;color:#4caf50;">&#x1F4C4; {{ f }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div style="margin-bottom:10px;font-size:.8rem;color:#888;">
+    <span style="color:#ff9800;">&#x26A0;&#xFE0F;</span> Aucun fichier persistant détecté.
+    <button onclick="appAction('scan','{{ app.app_id }}')"
+      style="margin-left:6px;background:transparent;border:1px solid #2a2d3e;
+      color:#1e90ff;padding:1px 8px;border-radius:4px;cursor:pointer;font-size:.78rem;">
+      &#x1F50D; Scanner
+    </button>
+  </div>
+  {% endif %}
+
+  <!-- Boutons actions -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <button id="btn-start-{{ app.app_id }}"
+      onclick="appAction('start','{{ app.app_id }}')"
+      class="btn btn-green">&#x25B6; Start</button>
+    <button id="btn-stop-{{ app.app_id }}"
+      onclick="appAction('stop','{{ app.app_id }}')"
+      class="btn btn-red">&#x25A0; Stop</button>
+    <button onclick="openConfig('{{ app.app_id }}')"
+      class="btn btn-orange">&#x2699;&#xFE0F; Config</button>
+    <button onclick="appAction('scan','{{ app.app_id }}')"
+      class="btn btn-purple">&#x1F50D; Scan AppData</button>
+    <div style="width:1px;height:20px;background:#2a2d3e;margin:0 2px;"></div>
+    <button onclick="appAction('update','{{ app.app_id }}')"
+      class="btn" style="background:rgba(30,144,255,.15);border:1px solid rgba(30,144,255,.4);color:#1e90ff;">
+      &#x1F504; Update</button>
+    <button onclick="appAction('restore','{{ app.app_id }}')"
+      class="btn btn-orange">&#x1F4BE; Restaurer</button>
+    <button onclick="appAction('uninstall','{{ app.app_id }}')"
+      class="btn" style="background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);color:#f44336;">
+      &#x1F5D1;&#xFE0F; Supprimer</button>
+  </div>
+  <div id="sr-{{ app.app_id }}" class="result-zone"></div>
+</div>
+{% endfor %}
+{% else %}
+<div style="color:#888;font-size:.85rem;padding:20px;background:#1a1d27;border-radius:8px;text-align:center;">
+  Aucune app installée via AppStore pour l'instant.<br>
+  <span style="font-size:.78rem;color:#555;">Utilise le formulaire ci-dessus pour installer ta première app.</span>
+</div>
+{% endif %}
