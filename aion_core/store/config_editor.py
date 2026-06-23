@@ -7,7 +7,7 @@ et permet de les modifier depuis le dashboard AION.
 
 Les fichiers sont TOUJOURS dans appdata/ (git-ignore) :
   C:/AION_APPS/appdata/quickmind/config.yaml
-  C:/AION_APPS/appdata\projectmind/.env
+  C:/AION_APPS/appdata/projectmind/.env
 
 Jamais dans le repo git -> cles API en securite.
 """
