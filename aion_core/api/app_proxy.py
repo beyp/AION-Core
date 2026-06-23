@@ -122,8 +122,83 @@ def register_proxy_routes(app, aion_app):
 
         # Contenu de la zone principale
         if app_url and app_type in ("fastapi", "api_external"):
-            # ── Iframe vers l'app ──────────────────────────────────────────
-            content_html = f'<iframe src="{app_url}" class="app-iframe" title="{name}" loading="lazy"></iframe>'
+            # Ouvrir l'app directement dans un nouvel onglet
+            # On ne peut PAS utiliser un iframe car window.location.origin
+            # retournerait le port d'AION (8000) au lieu du port de l'app
+            # → les fetch() de l'app iraient sur AION et retourneraient 404
+            try:
+                import requests as _req
+                health_ep = cfg.get("health_endpoint", "/health")
+                hr = _req.get(app_url.rstrip("/") + health_ep, timeout=2)
+                is_up = hr.status_code < 400
+                try:
+                    hdata = hr.json()
+                    stats_items = [(k,v) for k,v in hdata.items()
+                                   if k not in ("status","app","time") and v is not None]
+                    stats = " &bull; ".join(f"<strong>{v}</strong>&nbsp;{k}"
+                                           for k,v in stats_items[:4])
+                except Exception:
+                    stats = ""
+            except Exception:
+                is_up  = False
+                stats  = ""
+
+            status_color = "#4caf50" if is_up else "#f44336"
+            status_dot   = "&#x25CF; En ligne" if is_up else "&#x25CF; Hors ligne"
+            health_html  = (
+                f'<div style="background:rgba({("76,175,80" if is_up else "244,67,54")},.1);'
+                f'border:1px solid rgba({("76,175,80" if is_up else "244,67,54")},.3);'
+                f'border-radius:8px;padding:10px 16px;font-size:.85rem;color:{status_color};margin-bottom:16px;">'
+                f'{status_dot}{(" &nbsp;|&nbsp; " + stats) if stats else ""}</div>'
+            )
+
+            content_html = f'''
+            <div style="padding:24px;height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
+              {health_html}
+              <div style="background:var(--card);border:1px solid var(--border);
+                   border-radius:12px;padding:28px;text-align:center;">
+                <div style="font-size:2.5rem;margin-bottom:10px;">{icon}</div>
+                <div style="font-size:1.1rem;font-weight:600;margin-bottom:6px;">{name}</div>
+                <div style="font-size:.82rem;color:var(--dim);margin-bottom:20px;">{app_url}</div>
+                <a href="{app_url}" target="_blank"
+                   style="display:inline-flex;align-items:center;gap:8px;background:#1e90ff;
+                   color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;
+                   font-size:.95rem;font-weight:600;">
+                  &#x1F680; Ouvrir {name} dans un nouvel onglet
+                </a>
+                <p style="color:var(--dim);font-size:.75rem;margin-top:12px;">
+                  L'app s'ouvre directement sur son propre port pour fonctionner correctement.
+                </p>
+              </div>
+              <div style="background:var(--card);border:1px solid var(--border);
+                   border-radius:10px;padding:16px;">
+                <div style="font-size:.78rem;color:var(--dim);margin-bottom:8px;">
+                  &#x1F916; Commande AION IA :</div>
+                <div style="display:flex;gap:8px;">
+                  <input id="app-cmd" type="text"
+                    placeholder="Ex: liste mes tâches quickmind, ajoute une tâche urgent..."
+                    style="flex:1;background:#12141f;border:1px solid var(--border);
+                      color:var(--text);padding:9px 14px;border-radius:6px;font-size:.88rem;"
+                    onkeydown="if(event.key==='Enter') sendCmd()">
+                  <button onclick="sendCmd()"
+                    style="background:var(--accent);color:#fff;border:none;
+                      padding:9px 18px;border-radius:6px;cursor:pointer;">Envoyer</button>
+                </div>
+                <div id="cmd-result" style="margin-top:10px;font-size:.85rem;
+                     color:#4caf50;white-space:pre-wrap;min-height:24px;"></div>
+              </div>
+            </div>
+            <script>
+            function sendCmd() {{
+              var i=document.getElementById("app-cmd"),r=document.getElementById("cmd-result"),t=i.value.trim();
+              if(!t) return; r.style.color="#ff9800"; r.textContent="\u23f3 AION..."; i.value="";
+              fetch("/api/route",{{method:"POST",headers:{{"Content-Type":"application/json"}},
+                body:JSON.stringify({{text:t}})}}).then(function(x){{return x.json();}}).then(function(d){{
+                r.style.color="#4caf50"; r.textContent=d.response||d.result||"OK";
+              }}).catch(function(e){{r.style.color="#f44336";r.textContent="Erreur: "+e;}});
+            }}
+            </script>
+            '''
         else:
             # ── App locale : affichage avec commande IA ────────────────────
             connector = aion_app.app_router._apps.get(app_id)
