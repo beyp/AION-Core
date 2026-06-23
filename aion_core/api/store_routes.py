@@ -230,28 +230,40 @@ def register_store_routes(app, aion_app):
 
     @app.get("/api/store/{app_id}/config")
     async def store_get_config(app_id: str):
-        """Lit les fichiers config.yaml/.env d'une app et detecte les cles vides."""
+        """Lit config app + infos shared (GROQ_API_KEY, ADO_PAT, etc.)."""
         from pathlib import Path as _P
         from aion_core.store.config_editor import ConfigEditor
+        from aion_core.store.shared_config  import SharedConfig
         import json as _j
 
-        # Recuperer les chemins depuis le registre
         install_path = appdata_path = ""
+        app_shared_keys = []
         for rf in [_P("apps.local.json"), _P("apps.json")]:
             if rf.exists():
                 try:
                     d = _j.loads(rf.read_text(encoding="utf-8"))
-                    s = d.get("apps", {}).get(app_id, {}).get("store", {})
-                    install_path = s.get("install_path", "")
-                    appdata_path = s.get("appdata_path", "")
+                    app_cfg = d.get("apps", {}).get(app_id, {})
+                    s = app_cfg.get("store", {})
+                    install_path    = s.get("install_path", "")
+                    appdata_path    = s.get("appdata_path", "")
+                    app_shared_keys = app_cfg.get("shared_keys", [])
                     if install_path: break
                 except Exception: pass
 
         if not install_path:
             return {"success": False, "message": f"App '{app_id}' non trouvee"}
 
-        editor = ConfigEditor(app_id, install_path, appdata_path)
-        return editor.read_all()
+        editor     = ConfigEditor(app_id, install_path, appdata_path)
+        app_config = editor.read_all()
+
+        shared = SharedConfig()
+        for fname, fdata in app_config.get("files", {}).items():
+            fdata["fields"] = shared.enrich_fields(fdata.get("fields", []), app_shared_keys)
+
+        shared_data = shared.read_all()
+        app_config["shared_available"] = list(shared_data.keys())
+        app_config["shared_count"]     = len(shared_data)
+        return app_config
 
     @app.post("/api/store/{app_id}/config")
     async def store_save_config(app_id: str, request: Request):
@@ -292,6 +304,73 @@ def register_store_routes(app, aion_app):
         if not all([filename, key]):
             return {"success": False, "message": "filename et key requis"}
         return editor.save_field(filename, key, value)
+    @app.post("/api/store/{app_id}/config/inherit")
+    async def store_inherit_shared(app_id: str, request: Request):
+        """Propage les valeurs partagées (shared.env) vers le .env de l'app."""
+        from pathlib import Path as _P2
+        from aion_core.store.shared_config import SharedConfig
+        import json as _j2
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        appdata_path = ""
+        app_shared_keys = []
+        for rf in [_P2("apps.local.json"), _P2("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j2.loads(rf.read_text(encoding="utf-8"))
+                    app_cfg = d.get("apps", {}).get(app_id, {})
+                    appdata_path    = app_cfg.get("store", {}).get("appdata_path", "")
+                    app_shared_keys = app_cfg.get("shared_keys", [])
+                    if appdata_path: break
+                except Exception: pass
+        if not appdata_path:
+            return {"success": False, "message": f"App '{app_id}' introuvable"}
+        keys   = body.get("keys", app_shared_keys or None)
+        shared = SharedConfig()
+        return shared.propagate_to_app(app_id, appdata_path, keys)
+
+    @app.get("/api/shared")
+    async def get_shared_config():
+        """Retourne toutes les valeurs partagées AION."""
+        from aion_core.store.shared_config import SharedConfig, KNOWN_SHARED_KEYS
+        shared = SharedConfig()
+        data   = shared.read_all()
+        SENSITIVE = {"api_key","token","secret","password","pat","groq"}
+        def _sens(k): return any(s in k.lower() for s in SENSITIVE)
+        def _empty(v): return not v or v.strip() in {"","your_key_here","gsk_your_key_here","your_pat_here"}
+        fields = [{"key":k,"value":v,"sensitive":_sens(k),"empty":_empty(v)} for k,v in data.items()]
+        for k in sorted(KNOWN_SHARED_KEYS):
+            if k not in data:
+                fields.append({"key":k,"value":"","sensitive":_sens(k),"empty":True})
+        return {"fields": fields, "total": len(fields), "defined": len(data)}
+
+    @app.post("/api/shared")
+    async def save_shared_config(request: Request):
+        """Sauvegarde des valeurs partagées + propagation optionnelle."""
+        from aion_core.store.shared_config import SharedConfig
+        body    = await request.json()
+        updates = body.get("updates", {})
+        if not updates:
+            return {"success": False, "message": "Aucune mise à jour fournie"}
+        shared  = SharedConfig()
+        results = shared.set_many(updates)
+        saved   = [k for k, ok in results.items() if ok]
+        prop    = None
+        if body.get("propagate", False):
+            prop = shared.propagate_to_all_apps()
+        return {"success": True, "message": f"{len(saved)} valeur(s) sauvegardée(s)",
+                "saved": saved, "propagation": prop}
+
+    @app.post("/api/shared/propagate")
+    async def propagate_shared():
+        """Propage toutes les valeurs partagées à toutes les apps."""
+        from aion_core.store.shared_config import SharedConfig
+        return SharedConfig().propagate_to_all_apps()
+
+
 
     @app.post("/api/store/start/{app_id}")
     async def store_start(app_id: str):
