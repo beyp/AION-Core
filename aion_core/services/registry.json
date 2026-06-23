@@ -40,9 +40,9 @@
       ],
       "github": "beyp/AION-Core",
       "branch": "main",
-      "commit": "",
-      "added": "",
-      "status": "planned",
+      "commit": "08f77fa19f11",
+      "added": "2026-06-23",
+      "status": "active",
       "example_prompt": "Mets l'ordinateur en veille dans 30 minutes"
     }
   }
