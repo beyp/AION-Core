@@ -880,12 +880,11 @@ function openConfig(id) {{
             "color:#e0e0e0;padding:5px 10px;border-radius:5px;font-size:.82rem;'" +
             " onchange='markChanged(this)'>";
           if (f.sensitive) {{
-            html += "<button type='button' onclick=\"toggleSecret('" + inputId + "')\"" +
-              " title='Afficher / Masquer'" +
-              " style='background:none;border:1px solid #2a2d3e;border-radius:5px;" +
-              "padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;" +
-              "transition:border-color .2s;' onmouseover=\"this.style.borderColor='#1E90FF'\"" +
-              " onmouseout=\"this.style.borderColor='#2a2d3e'\"">" +
+            html += "<button type='button' onclick='toggleSecret(\"" + inputId + "\")'"+
+              " title='Afficher / Masquer'"+
+              " style='background:none;border:1px solid #2a2d3e;border-radius:5px;"+
+              "padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;"+
+              "transition:border-color .2s;'>"+
               "&#128065;</button>";
           }}
           html += "</div>";
