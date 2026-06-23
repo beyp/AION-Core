@@ -6,7 +6,7 @@ detecte les cles non remplies (vides, placeholder),
 et permet de les modifier depuis le dashboard AION.
 
 Les fichiers sont TOUJOURS dans appdata/ (git-ignore) :
-  C:\AION_APPS\appdata\quickmind\config.yaml
+  C:/AION_APPS/appdata/quickmind/config.yaml
   C:\AION_APPS\appdata\projectmind\.env
 
 Jamais dans le repo git -> cles API en securite.
@@ -247,8 +247,7 @@ class ConfigEditor:
         leaf_key = key.split(".")[-1]
         # Remplacer la valeur dans le fichier
         pattern = rf'(^\s*{re.escape(leaf_key)}\s*:\s*)(.*)$'
-        new_line = f'\g<1>"{value}"'
-        new_content, n = re.subn(pattern, new_line, content, flags=re.MULTILINE)
+        repl_v = value
         if n == 0:
             # Cle non trouvee : ajouter a la fin
             new_content = content.rstrip() + f'\n{leaf_key}: "{value}"\n'
@@ -264,8 +263,8 @@ class ConfigEditor:
         """Met a jour ou ajoute une cle dans un fichier .env."""
         content = path.read_text(encoding="utf-8")
         pattern = rf'(^{re.escape(key)}\s*=)(.*)$'
-        new_line = f'\g<1>{value}'
-        new_content, n = re.subn(pattern, new_line, content, flags=re.MULTILINE)
+        repl_v = str(value)
+        new_content, n = re.subn(pattern, lambda m: m.group(1) + repl_v, content, flags=re.MULTILINE)
         if n == 0:
             new_content = content.rstrip() + f'\n{key}={value}\n'
         path.write_text(new_content, encoding="utf-8")
