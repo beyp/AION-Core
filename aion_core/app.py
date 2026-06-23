@@ -70,12 +70,14 @@ class AionApp:
                     [a["id"] for a in self.discovery.list_apps()])
 
     def run(self) -> None:
-        """Lance AION-Core."""
+        """Lance AION-Core + AION-Services."""
         import uvicorn
+        import threading
         from aion_core.api.server import create_app
 
         host = os.getenv("AION_HOST", "0.0.0.0")
         port = int(os.getenv("AION_PORT", "8000"))
+        svc_port = int(os.getenv("AION_SERVICES_PORT", "8001"))
 
         print(f"\n{'='*50}")
         print(f"  \U0001f916 AION-Core v{self.VERSION}")
@@ -83,10 +85,28 @@ class AionApp:
         print(f"{'='*50}")
         print(f"  Dashboard : http://localhost:{port}")
         print(f"  Voice API : http://localhost:{port}/api/voice")
+        print(f"  Services  : http://localhost:{svc_port}")
         print(f"  API Docs  : http://localhost:{port}/docs")
         print(f"{'='*50}\n")
 
         app = create_app(self)
+
+        # Démarrer AION-Services sur port 8001 en thread daemon
+        def _start_services():
+            try:
+                from aion_core.services.service_runner import create_service_app
+                svc_app = create_service_app()
+                uvicorn.run(svc_app,
+                            host=os.getenv("AION_SERVICES_HOST", "0.0.0.0"),
+                            port=svc_port,
+                            log_level="warning",
+                            access_log=False)
+            except Exception as e:
+                logger.error("AION-Services erreur démarrage: %s", e)
+
+        t_svc = threading.Thread(target=_start_services, daemon=True, name="aion-services")
+        t_svc.start()
+        logger.info("AION-Services démarré sur port %s", svc_port)
 
         # Lancer les apps autostart en arriere-plan (non bloquant)
         import threading
