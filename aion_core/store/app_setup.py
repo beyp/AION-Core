@@ -102,32 +102,62 @@ class AppSetup:
             return {"name": "venv", "success": False, "message": str(e)}
 
     def _pip_install(self) -> dict:
-        """pip install -r requirements.txt dans le venv."""
-        req_file = self.install_path / "requirements.txt"
-        if not req_file.exists():
+        """
+        pip install dans le venv.
+
+        Ordre de priorite des fichiers requirements :
+          1. requirements.api.txt  (mode headless/API sans GUI — ex: QuickMind)
+          2. requirements.txt      (requirements complets)
+
+        requirements.api.txt est prefere car il inclut fastapi+uvicorn
+        sans les dependances GUI (customtkinter, pywin32...) qui peuvent
+        planter en mode serveur headless.
+        """
+        # Chercher le bon fichier requirements dans l'ordre de priorite
+        candidates = [
+            ("requirements.api.txt",  "mode API (sans GUI)"),
+            ("requirements.txt",      "requirements complet"),
+        ]
+
+        req_file = None
+        req_label = ""
+        for fname, label in candidates:
+            candidate = self.install_path / fname
+            if candidate.exists():
+                req_file  = candidate
+                req_label = label
+                break
+
+        if req_file is None:
             return {"name": "pip", "success": True,
-                    "message": "Pas de requirements.txt - skip"}
+                    "message": "Aucun requirements*.txt trouve — skip pip install"}
 
         if not self.venv_pip.exists():
             return {"name": "pip", "success": False,
-                    "message": "pip introuvable dans le venv"}
+                    "message": f"pip introuvable dans le venv ({self.venv_pip})"}
 
+        logger.info("pip install %s pour %s (%s)...",
+                    req_file.name, self.app_id, req_label)
         try:
-            logger.info("pip install pour %s...", self.app_id)
             result = subprocess.run(
-                [str(self.venv_pip), "install", "-r", "requirements.txt", "--quiet"],
+                [str(self.venv_pip), "install", "-r", str(req_file), "--quiet"],
                 cwd=str(self.install_path),
-                capture_output=True, text=True, timeout=300
+                capture_output=True, text=True,
+                encoding="utf-8", errors="replace",
+                timeout=300
             )
             if result.returncode != 0:
+                err = (result.stderr or result.stdout or "").strip()[:400]
                 return {"name": "pip", "success": False,
-                        "message": f"Erreur pip: {result.stderr.strip()[:300]}"}
-            logger.info("pip install OK pour %s", self.app_id)
+                        "message": f"Erreur pip ({req_file.name}): {err}",
+                        "req_file": str(req_file)}
+            logger.info("pip install OK pour %s via %s", self.app_id, req_file.name)
             return {"name": "pip", "success": True,
-                    "message": "Dependances installees"}
+                    "message": f"Dependances installees via {req_file.name} ({req_label})",
+                    "req_file": str(req_file)}
         except subprocess.TimeoutExpired:
             return {"name": "pip", "success": False,
-                    "message": "Timeout pip (>5 min)"}
+                    "message": f"Timeout pip >5 min ({req_file.name})"}
         except Exception as e:
             return {"name": "pip", "success": False, "message": str(e)}
 
