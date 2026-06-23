@@ -102,7 +102,7 @@ class ProcessManager:
                     content = (root / dc).read_text(encoding="utf-8",
                                                       errors="replace")
                     import re
-                    m = re.search(r'- ["']?(\d{4,5}):\d{4,5}["']?', content)
+                    m = re.search(r'(\d{4,5}):\d{4,5}', content)
                     if m:
                         port = int(m.group(1))
                 except Exception:
