@@ -1,14 +1,24 @@
 {
   "_readme": "Copier en apps.local.json (git-ignored). Config de tes apps personnelles.",
+  "_standard": {
+    "note": "Toute app AION-Core doit respecter : entry point unique, /health endpoint, port via env var.",
+    "modes": {
+      "fastapi": "App web FastAPI/uvicorn — lancee par python run_api.py ou python main.py",
+      "script": "Script Python natif (Desktop/Tkinter) — AION lance la fenetre, pas d'iframe",
+      "docker": "Container Docker — AION fait docker compose up -d"
+    }
+  },
   "_important": {
-    "QuickMind_DB": "config.yaml → database.path controle le chemin. Copier config.yaml dans appdata/ pour persister.",
-    "ProjectMind_DB": "Variable DB_PATH dans .env. Pointer vers C:/AION_APPS/appdata/projectmind/projectmind.db"
+    "QuickMind_entry": "run_api.py — lance core.api_server:app (FastAPI headless, port 8765)",
+    "QuickMind_DB": "config.yaml -> database.path. Copier config.yaml dans appdata/ pour persister.",
+    "ProjectMind_entry": "main.py — FastAPI natif avec if __name__ block (port 8766)",
+    "ProjectMind_DB": "Variable DB_PATH dans .env -> C:/AION_APPS/appdata/projectmind/projectmind.db"
   },
   "version": "1.0",
   "apps": {
     "quickmind": {
       "name": "QuickMind",
-      "description": "Gestionnaire de taches — API FastAPI/uvicorn",
+      "description": "Gestionnaire de taches — API FastAPI headless (run_api.py)",
       "type": "fastapi",
       "status": "installed",
       "connector": "aion_core/apps/quickmind/connector.py",
@@ -27,7 +37,7 @@
         ],
         "port": 8765,
         "startup_order": 1,
-        "health_check": false,
+        "health_check": true,
         "env": {
           "QUICKMIND_HOST": "0.0.0.0",
           "QUICKMIND_PORT": "8765"
@@ -48,12 +58,12 @@
     },
     "projectmind": {
       "name": "ProjectMind",
-      "description": "Gestion de projets Gantt/capacity — FastAPI natif",
+      "description": "Gestion de projets Gantt/capacity — FastAPI natif (main.py)",
       "type": "fastapi",
       "status": "installed",
       "connector": null,
       "url": "http://localhost:8766",
-      "health_endpoint": "/api/projects",
+      "health_endpoint": "/health",
       "github": "beyp/ProjectMind",
       "icon": "clipboard",
       "version": "1.0",
@@ -67,9 +77,13 @@
         ],
         "port": 8766,
         "startup_order": 2,
-        "health_check": false,
+        "health_check": true,
         "env": {
-          "DB_PATH": "C:\\AION_APPS\\appdata\\projectmind\\projectmind.db"
+          "PROJECTMIND_HOST": "0.0.0.0",
+          "PROJECTMIND_PORT": "8766",
+          "DB_PATH": "C:\\AION_APPS\\appdata\\projectmind\\projectmind.db",
+          "GROQ_API_KEY": "",
+          "GROQ_MODEL": "llama-3.3-70b-versatile"
         }
       },
       "store": {
