@@ -63,11 +63,35 @@ class AionApp:
         update_mode     = os.getenv("AION_UPDATE_MODE", "notify")
         update_interval = int(os.getenv("AION_UPDATE_INTERVAL", "3600"))
         self.updater    = AionUpdater(mode=update_mode, check_interval=update_interval)
+
+        # Initialiser shared.env depuis les variables d'environnement AION
+        # (chargées depuis .env par dotenv dans main.py)
+        # Cela permet aux apps d'hériter GROQ_API_KEY, ADO_PAT, etc. via la modale Config
+        self._init_shared_env()
         self.discovery  = AppDiscovery(self.brain, self.memory)
         self.launcher   = AppLauncher()  # lit apps.json + apps.local.json
 
         logger.info("Composants initialises — Apps: %s",
                     [a["id"] for a in self.discovery.list_apps()])
+
+    def _init_shared_env(self) -> None:
+        """
+        Synchronise data/shared.env avec les variables d'environnement AION-Core.
+        Appelé au démarrage pour que les apps puissent hériter les clés via Config.
+        """
+        try:
+            from aion_core.store.shared_config import SharedConfig, KNOWN_SHARED_KEYS
+            shared = SharedConfig()
+            synced = []
+            for key in KNOWN_SHARED_KEYS:
+                val = os.getenv(key, "")
+                if val and val not in ("", "your_key_here", "your_pat_here"):
+                    shared.set(key, val)
+                    synced.append(key)
+            if synced:
+                logger.info("shared.env initialise depuis .env AION: %s", synced)
+        except Exception as e:
+            logger.warning("shared.env init: %s", e)
 
     def run(self) -> None:
         """Lance AION-Core + AION-Services."""
