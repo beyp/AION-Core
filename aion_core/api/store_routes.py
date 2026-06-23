@@ -123,6 +123,8 @@ def register_store_routes(app, aion_app):
         }
         """
         from aion_core.store.process_manager import ProcessManager
+        from pathlib import Path as _P
+        import json as _json
         body          = await request.json()
         github_repo   = body.get("github", "")
         app_id        = body.get("app_id") or None
@@ -159,8 +161,6 @@ def register_store_routes(app, aion_app):
 
         # Determiner le port depuis apps.local.json si non fourni
         if not port:
-            import json as _json
-            from pathlib import Path as _P
             for rf in [_P("apps.local.json"), _P("apps.json")]:
                 if rf.exists():
                     try:
