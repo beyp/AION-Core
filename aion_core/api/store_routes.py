@@ -46,6 +46,22 @@ def register_store_routes(app, aion_app):
     async def store_status():
         return {"apps": _get_store().status()}
 
+    @app.get("/api/store/cards", response_class=HTMLResponse)
+    async def store_cards(request: Request):
+        """Fragment htmx : liste les cards des apps installées via AppStore."""
+        from pathlib import Path as _P
+        from fastapi.templating import Jinja2Templates as _Jinja
+        apps_status = _get_store().status()
+        templates_dir = _P(__file__).parent.parent / "web" / "templates"
+        if templates_dir.exists():
+            _tmpl = _Jinja(directory=str(templates_dir))
+            return _tmpl.TemplateResponse(
+                request=request,
+                name="store_cards.html",
+                context={"apps": apps_status}
+            )
+        return HTMLResponse("<p style='color:#888;'>Template introuvable.</p>")
+
     @app.get("/api/store/scan/{app_id}")
     async def store_scan(app_id: str):
         """
@@ -486,19 +502,3 @@ def register_store_routes(app, aion_app):
             _tmpl = _Jinja(directory=str(templates_dir))
             return _tmpl.TemplateResponse(request=request, name="store.html", context={})
         return HTMLResponse("<h1>App Store</h1><p>Template store.html introuvable.</p>")
-
-    @app.get("/api/store/cards", response_class=HTMLResponse)
-    async def store_cards(request: Request):
-        """Fragment htmx : liste les cards des apps installées via AppStore."""
-        from pathlib import Path as _P
-        from fastapi.templating import Jinja2Templates as _Jinja
-        apps_status = _get_store().status()
-        templates_dir = _P(__file__).parent.parent / "web" / "templates"
-        if templates_dir.exists():
-            _tmpl = _Jinja(directory=str(templates_dir))
-            return _tmpl.TemplateResponse(
-                request=request,
-                name="store_cards.html",
-                context={"apps": apps_status}
-            )
-        return HTMLResponse("<p style='color:#888;'>Template introuvable.</p>")
