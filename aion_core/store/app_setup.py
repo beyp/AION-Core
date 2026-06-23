@@ -278,7 +278,8 @@ class AppSetup:
     def get_launch_command(self) -> list[str]:
         """
         Retourne la commande optimale pour lancer l'app.
-        Priorite : venv python > systeme python.
+        Priorite entry point : run_api.py > main.py > app.py > server.py > run.py
+        Priorite python      : venv > systeme
         """
         candidates = ["run_api.py", "main.py", "app.py", "server.py", "run.py"]
         script = None
@@ -287,8 +288,13 @@ class AppSetup:
                 script = c
                 break
 
+        if not script:
+            logger.warning("Aucun entry point trouve dans %s, fallback main.py", self.install_path)
+            script = "main.py"
+
         python_exe = str(self.venv_python) if self.venv_python.exists() else sys.executable
-        return [python_exe, script or "main.py"]
+        logger.info("Entry point detecte : %s -> %s %s", self.install_path.name, python_exe, script)
+        return [python_exe, script]
 
     def scan_data_after_run(self) -> list[str]:
         """
