@@ -579,9 +579,9 @@ def register_store_routes(app, aion_app):
                       placeholder="Chemin relatif (ex: data/{app_id}.db)"
                       style="flex:1;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
                       padding:5px 10px;border-radius:5px;font-size:.8rem;"
-                      onkeydown="if(event.key==='Enter') addAppFile(\'{app_id}\')"
+                      onkeydown="if(event.key==='Enter') addAppFile(\"{app_id}\")"
                       title="Entree pour ajouter">
-                    <button onclick="addAppFile(\'{app_id}\')"
+                    <button onclick="addAppFile(\"{app_id}\")"
                       style="background:#ff9800;color:#fff;border:none;padding:5px 12px;
                       border-radius:5px;cursor:pointer;font-size:.8rem;">➕ Ajouter</button>
                   </div>
@@ -606,34 +606,34 @@ def register_store_routes(app, aion_app):
               </div>
               {appdata_html}
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;">
-                <button id="btn-start-{app_id}" onclick="appStart('{app_id}')"
+                <button id="btn-start-{app_id}" onclick="appStart(\"{app_id}\")"
                   style="background:#4caf5022;border:1px solid #4caf5055;color:#4caf50;
                   padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
                   &#x25B6; Start</button>
-                <button id="btn-stop-{app_id}" onclick="appStop('{app_id}')"
+                <button id="btn-stop-{app_id}" onclick="appStop(\"{app_id}\")"
                   style="background:#f4433622;border:1px solid #f4433655;color:#f44336;
                   padding:6px 16px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
                   &#x25A0; Stop</button>
-                <button onclick="openConfig('{app_id}')"
+                <button onclick="openConfig(\"{app_id}\")"
                   title="Configurer les cles API et parametres de l'app"
                   style="background:#ff980022;border:1px solid #ff980055;color:#ff9800;
                   padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.82rem;font-weight:600;">
                   &#x2699;&#xFE0F; Config</button>
-                <button onclick="scanAfterStart('{app_id}')"
+                <button onclick="scanAfterStart(\"{app_id}\")"
                   title="Scanner et sauvegarder les fichiers appdata apres un premier lancement"
                   style="background:#9c27b022;border:1px solid #9c27b055;color:#9c27b0;
                   padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
                   &#x1F50D; Scan AppData</button>
                 <div style="width:1px;height:20px;background:#2a2d3e;margin:0 4px;"></div>
-                <button onclick="storeAction('update','{app_id}')"
+                <button onclick="storeAction(\"update\",\"{app_id}\")"
                   style="background:#1e90ff22;border:1px solid #1e90ff55;color:#1e90ff;
                   padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
                   &#x1F504; Update</button>
-                <button onclick="storeAction('restore','{app_id}')"
+                <button onclick="storeAction(\"restore\",\"{app_id}\")"
                   style="background:#ff980022;border:1px solid #ff980055;color:#ff9800;
                   padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
                   &#x1F4BE; Restaurer</button>
-                <button onclick="storeUninstall('{app_id}')"
+                <button onclick="storeUninstall(\"{app_id}\")"
                   style="background:#f4433611;border:1px solid #f4433633;color:#f44336;
                   padding:6px 12px;border-radius:6px;cursor:pointer;font-size:.78rem;">
                   &#x1F5D1;&#xFE0F; Supprimer</button>
