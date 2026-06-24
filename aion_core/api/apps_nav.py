@@ -118,28 +118,21 @@ def register_nav_routes(app, aion_app):
 
     @app.get("/api/nav/apps/status", response_class=HTMLResponse)
     async def nav_apps_status():
-        """Pastilles de statut pour toutes les apps (htmx polling)."""
+        """
+        Pastilles de statut — retourne instantanément sans health check réseau.
+        Le statut est vérifié côté client via /api/store/running/{app_id} si besoin.
+        """
         registry = _load_registry()
         updates  = []
         for app_id, cfg in registry.get("apps", {}).items():
             if cfg.get("status") not in ("active", "installed"):
                 continue
-            url       = cfg.get("url", "")
-            health_ep = cfg.get("health_endpoint", "/health")
-            is_online = False
-            if url:
-                try:
-                    import requests as _req
-                    r = _req.get(url.rstrip("/") + health_ep, timeout=1.5)
-                    is_online = r.status_code < 400
-                except Exception:
-                    pass
-            else:
-                is_online = True  # apps locales toujours online
-            color = "#4caf50" if is_online else "#f44336"
+            # Pas de health check HTTP ici — trop lent si app offline
+            # On retourne "inconnu" (gris) par défaut, le JS peut actualiser
             updates.append(
                 f'<span id="dot-{app_id}" class="nav-dot" '
                 f'style="width:6px;height:6px;border-radius:50%;'
-                f'background:{color};margin-left:auto;display:inline-block;"></span>'
+                f'background:#555;margin-left:auto;display:inline-block;" '
+                f'title="{app_id}"></span>'
             )
         return HTMLResponse("\n".join(updates))
