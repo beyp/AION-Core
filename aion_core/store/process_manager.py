@@ -231,9 +231,12 @@ class ProcessManager:
 
         # fastapi / python : subprocess
         try:
+            # IMPORTANT : cwd = install_path garantit que les chemins relatifs
+            # (config.yaml, data/) sont resolus dans le bon repertoire
+            cwd = str(Path(install_path).resolve())
             proc = subprocess.Popen(
                 command,
-                cwd    = str(install_path),
+                cwd    = cwd,
                 env    = proc_env,
                 stdout = subprocess.DEVNULL,
                 stderr = subprocess.DEVNULL,
@@ -241,11 +244,27 @@ class ProcessManager:
                                  if sys.platform == "win32" else 0),
             )
         except FileNotFoundError as e:
-            return {
-                "success": False,
-                "message": f"Executable introuvable: {command[0]}. "
-                           f"Verifie que le venv est bien cree dans {install_path}",
-            }
+            # Essai avec le script Python directement si l'exe venv manque
+            if len(command) > 1 and not Path(command[0]).exists():
+                fallback = [sys.executable] + command[1:]
+                try:
+                    cwd = str(Path(install_path).resolve())
+                    proc = subprocess.Popen(
+                        fallback,
+                        cwd    = cwd,
+                        env    = proc_env,
+                        stdout = subprocess.DEVNULL,
+                        stderr = subprocess.DEVNULL,
+                        creationflags = (subprocess.CREATE_NO_WINDOW
+                                         if sys.platform == "win32" else 0),
+                    )
+                    logger.warning("Venv exe manquant, fallback Python systeme pour %s", app_id)
+                except Exception as e2:
+                    return {"success": False,
+                            "message": f"Executable introuvable: {command[0]}. Venv cree? ({e2})"}
+            else:
+                return {"success": False,
+                        "message": f"Executable introuvable: {command[0]}. Venv cree dans {install_path}?"}
         except Exception as e:
             return {"success": False, "message": f"Erreur lancement: {e}"}
 
