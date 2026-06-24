@@ -2,12 +2,8 @@
 {% block title %}Dashboard — AION-Core{% endblock %}
 
 {% block content %}
-<!-- Banniere mise a jour AION (htmx polling toutes les 5 min) -->
-<div id="update-banner-zone"
-     hx-get="/api/update/banner"
-     hx-trigger="load, every 300s"
-     hx-swap="innerHTML">
-</div>
+<!-- Banniere MAJ : chargée seulement si update disponible (pas au load) -->
+<div id="update-banner-zone"></div>
 
 <!-- Stats -->
 <div class="stats-grid">
