@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 <style>
 :root[data-theme="dark"]{--bg:#0f1117;--sb:#13161f;--card:#1a1d27;--border:#2a2d3e;
-  --text:#e0e0e0;--dim:#888;--accent:#1e90ff;--hdr:#151821;}
+  --text:#e0e0e0;--dim:#888;--accent:#1e90ff;--green:#4caf50;--red:#f44336;--orange:#ff9800;--hdr:#151821;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:"Segoe UI",sans-serif;background:var(--bg);color:var(--text);
   display:flex;flex-direction:column;height:100vh;overflow:hidden;}
@@ -17,34 +17,44 @@ header h1{color:var(--accent);font-size:1.2rem;font-weight:700;}
 .spacer{flex:1;}
 .hbtn{background:var(--card);border:1px solid var(--border);color:var(--text);
   padding:5px 12px;border-radius:6px;cursor:pointer;font-size:.82rem;text-decoration:none;}
-.hbtn:hover{background:var(--accent);color:#fff;}
 .layout{display:flex;flex:1;overflow:hidden;}
 .sidebar{width:220px;background:var(--sb);border-right:1px solid var(--border);
   display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;padding:10px 0;}
-.sb-sec{padding:4px 12px;font-size:.68rem;text-transform:uppercase;letter-spacing:1px;
-  color:var(--dim);margin-top:8px;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;
-  border-left:3px solid transparent;font-size:.88rem;text-decoration:none;color:var(--text);}
+.sb-sec{padding:4px 12px;font-size:.68rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-top:8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-left:3px solid transparent;
+  font-size:.88rem;text-decoration:none;color:var(--text);}
 .nav-item:hover{background:rgba(30,144,255,.08);}
-.nav-item.active{background:rgba(30,144,255,.12);border-left-color:var(--accent);
-  color:var(--accent);font-weight:600;}
+.nav-item.active{background:rgba(30,144,255,.12);border-left-color:var(--accent);color:var(--accent);font-weight:600;}
 .nav-icon{width:20px;text-align:center;} .nav-label{flex:1;}
 .main{flex:1;overflow-y:auto;padding:20px;}
-input,select{font-family:inherit;}
-::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-thumb{background:#2a2d3e;border-radius:3px;}
-.btn{border:none;border-radius:6px;cursor:pointer;font-size:.85rem;padding:6px 14px;}
-.btn-green{background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.4);color:#4caf50;font-weight:600;}
-.btn-red{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.4);color:#f44336;}
-.btn-blue{background:#1e90ff;color:#fff;font-weight:600;}
-.btn-blue:hover{opacity:.85;}
-.btn-orange{background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.4);color:#ff9800;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;}
+.btn{border:none;border-radius:6px;cursor:pointer;font-size:.82rem;padding:7px 14px;font-family:inherit;}
+.btn:hover{opacity:.85;}
+.btn-green{background:rgba(76,175,80,.15);border:1px solid rgba(76,175,80,.4);color:var(--green);font-weight:600;}
+.btn-red{background:rgba(244,67,54,.15);border:1px solid rgba(244,67,54,.4);color:var(--red);font-weight:600;}
+.btn-blue{background:var(--accent);color:#fff;font-weight:600;}
+.btn-orange{background:rgba(255,152,0,.15);border:1px solid rgba(255,152,0,.4);color:var(--orange);}
 .btn-purple{background:rgba(156,39,176,.15);border:1px solid rgba(156,39,176,.4);color:#9c27b0;}
-.btn-gray{background:transparent;border:1px solid #2a2d3e;color:#888;}
-.app-card{background:#1a1d27;border:1px solid #2a2d3e;border-radius:10px;
-  padding:16px;margin-bottom:12px;}
-.app-card-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
-.result-zone{margin-top:8px;font-size:.82rem;color:#4caf50;display:none;padding:6px 10px;
-  border-radius:6px;}
+.btn-gray{background:transparent;border:1px solid var(--border);color:var(--dim);}
+.btn-ghost-red{background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);color:var(--red);}
+.btn-ghost-blue{background:rgba(30,144,255,.15);border:1px solid rgba(30,144,255,.4);color:var(--accent);}
+.result-msg{margin-top:8px;font-size:.82rem;padding:5px 8px;border-radius:5px;display:none;}
+input,select{background:#12141f;border:1px solid var(--border);color:var(--text);
+  padding:9px 12px;border-radius:6px;font-size:.88rem;font-family:inherit;width:100%;}
+input:focus,select:focus{outline:none;border-color:var(--accent);}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;
+  align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  width:600px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;}
+.modal-header{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-shrink:0;}
+.field-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.field-label{width:170px;font-size:.78rem;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.field-input{flex:1;padding:6px 10px;font-size:.82rem;}
+::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
 </head>
 <body>
@@ -61,7 +71,7 @@ input,select{font-family:inherit;}
     <a href="/chat" class="nav-item"><span class="nav-icon">&#x1F916;</span><span class="nav-label">IA Chat</span></a>
     <div class="sb-sec">Apps</div>
     <div id="sidebar-apps" hx-get="/api/nav/apps/sidebar" hx-trigger="load" hx-swap="innerHTML">
-      <div style="padding:8px 14px;color:#888;font-size:.8rem;">&#8230;</div>
+      <div style="padding:8px 14px;color:var(--dim);font-size:.8rem;">&#8230;</div>
     </div>
     <div class="sb-sec">AION</div>
     <a href="/store" class="nav-item active"><span class="nav-icon">&#x1F3EA;</span><span class="nav-label">App Store</span></a>
@@ -70,358 +80,320 @@ input,select{font-family:inherit;}
   </nav>
 
   <main class="main">
-    <h2 style="color:#1e90ff;margin-bottom:4px;">&#x1F3EA; App Store</h2>
-    <p style="color:#888;font-size:.82rem;margin-bottom:16px;">
-      Installe et gère tes apps depuis GitHub.
-      DB et config sauvegardées dans <code style="color:#4caf50;">C:/AION_APPS/appdata/</code>
+    <h2 style="color:var(--accent);margin-bottom:4px;">&#x1F3EA; App Store</h2>
+    <p style="color:var(--dim);font-size:.82rem;margin-bottom:16px;">
+      Installe et gère tes apps. DB et config sauvegardées dans
+      <code style="color:var(--green);">C:/AION_APPS/appdata/</code>
     </p>
 
     <!-- Formulaire installation -->
-    <div class="app-card" style="margin-bottom:20px;">
-      <div style="font-weight:600;color:#1e90ff;margin-bottom:12px;">&#x2795; Installer une nouvelle app</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div style="font-weight:600;color:var(--accent);margin-bottom:12px;">&#x2795; Installer une nouvelle app</div>
       <div style="display:grid;grid-template-columns:1fr 110px 150px auto;gap:8px;align-items:end;">
         <div>
-          <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Repo GitHub</label>
+          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">Repo GitHub</label>
           <input id="inst-repo" type="text" placeholder="owner/repo  (ex: beyp/QuickMind)"
-            style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
-            padding:9px 14px;border-radius:6px;font-size:.88rem;"
-            onkeydown="if(event.key==='Enter') doInstall()">
+                 onkeydown="if(event.key==='Enter') doInstall()">
         </div>
         <div>
-          <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Port</label>
-          <input id="inst-port" type="number" placeholder="8765"
-            style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
-            padding:9px 10px;border-radius:6px;font-size:.85rem;">
+          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">Port</label>
+          <input id="inst-port" type="number" placeholder="8765">
         </div>
         <div>
-          <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">Type</label>
-          <select id="inst-type"
-            style="width:100%;background:#12141f;border:1px solid #2a2d3e;color:#e0e0e0;
-            padding:9px 8px;border-radius:6px;font-size:.82rem;">
+          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">Type</label>
+          <select id="inst-type">
             <option value="auto">&#x1F50D; Auto-detect</option>
             <option value="docker">&#x1F433; Docker</option>
             <option value="uvicorn">&#x26A1; Uvicorn/FastAPI</option>
-            <option value="python">&#x1F40D; Python script</option>
+            <option value="python">&#x1F40D; Python</option>
           </select>
         </div>
         <div>
-          <label style="font-size:.75rem;color:#888;display:block;margin-bottom:4px;">&nbsp;</label>
+          <label style="font-size:.75rem;display:block;margin-bottom:4px;">&nbsp;</label>
           <button class="btn btn-blue" onclick="doInstall()" style="padding:9px 16px;white-space:nowrap;">
             &#x1F4E5; Installer
           </button>
         </div>
       </div>
       <p style="font-size:.73rem;color:#555;margin-top:6px;">
-        &#x1F4A1; Auto-detect : priorité docker-compose.yml, puis run_api.py, main.py.
-        DB configurée automatiquement dans appdata/ après installation.
+        &#x1F4A1; Auto-detect : docker-compose.yml en priorité, puis run_api.py, main.py.
       </p>
-      <div id="inst-result" style="margin-top:10px;font-size:.82rem;display:none;
-           padding:8px 12px;border-radius:6px;"></div>
+      <div id="inst-result" class="result-msg"></div>
     </div>
 
-    <!-- Apps installées -->
-    <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:1px;
-         color:#888;margin-bottom:12px;font-weight:600;">
-      Apps gérées via AppStore
+    <!-- Apps installées via htmx -->
+    <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:10px;font-weight:600;">
+      Apps gérées
     </div>
     <div id="apps-list"
          hx-get="/api/store/cards"
          hx-trigger="load"
          hx-swap="innerHTML">
-      <div style="color:#888;padding:20px;text-align:center;">&#x23F3; Chargement...</div>
+      <div style="color:var(--dim);padding:20px;text-align:center;">&#x23F3; Chargement...</div>
     </div>
   </main>
 </div>
 
 <!-- Modal Config -->
-<div id="config-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
-  z-index:2000;align-items:center;justify-content:center;">
-  <div style="background:#1a1d27;border:1px solid #2a2d3e;border-radius:12px;
-    width:600px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;padding:16px 20px;
-      border-bottom:1px solid #2a2d3e;flex-shrink:0;">
+<div id="config-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
       <span id="config-title" style="font-weight:600;font-size:1rem;flex:1;"></span>
-      <button onclick="closeConfig()"
-        style="background:transparent;border:none;color:#888;cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+      <button class="btn btn-gray" onclick="closeConfig()" style="padding:4px 10px;">&#x2715;</button>
     </div>
-    <div id="config-body" style="padding:16px 20px;overflow-y:auto;flex:1;"></div>
-    <div style="padding:12px 20px;border-top:1px solid #2a2d3e;display:flex;
-      justify-content:flex-end;gap:8px;flex-shrink:0;">
-      <div style="flex:1;font-size:.75rem;color:#555;">
-        &#x1F512; Sauvegardé dans <code>C:/AION_APPS/appdata/</code> — jamais dans git.
-      </div>
-      <button id="config-save-btn" onclick="saveConfigModal()"
-        class="btn btn-blue" style="padding:8px 20px;">
-        &#x1F4BE; Sauvegarder
-      </button>
-      <button onclick="closeConfig()" class="btn btn-gray" style="padding:8px 14px;">
-        Fermer
-      </button>
+    <div id="config-body" class="modal-body"></div>
+    <div class="modal-footer">
+      <span style="flex:1;font-size:.73rem;color:#555;">
+        &#x1F512; Sauvegardé dans <code>C:/AION_APPS/appdata/</code>
+      </span>
+      <button class="btn btn-blue" onclick="saveConfig()" style="padding:8px 18px;">&#x1F4BE; Sauvegarder</button>
+      <button class="btn btn-gray" onclick="closeConfig()" style="padding:8px 14px;">Fermer</button>
     </div>
-    <div id="config-save-result" style="padding:0 20px 10px;font-size:.82rem;min-height:20px;"></div>
+    <div id="config-msg" style="padding:0 20px 8px;font-size:.82rem;min-height:18px;"></div>
   </div>
 </div>
 
 <script>
-// ── htmx sidebar ──────────────────────────────────────────────────
-document.addEventListener("htmx:afterSwap", function(e) {
-  if (e.target.id === "sidebar-apps") {
-    document.querySelectorAll("#sidebar-apps .nav-item").forEach(function(i) {
-      if (i.getAttribute("href") === window.location.pathname) i.classList.add("active");
+'use strict';
+
+// ── Sidebar ───────────────────────────────────────────────────────
+document.addEventListener('htmx:afterSwap', function(e) {
+  if (e.target.id === 'sidebar-apps') {
+    e.target.querySelectorAll('.nav-item').forEach(function(a) {
+      if (a.getAttribute('href') === window.location.pathname) a.classList.add('active');
+    });
+  }
+  if (e.target.id === 'apps-list') {
+    e.target.querySelectorAll('[data-app-id]').forEach(function(el) {
+      checkRunning(el.dataset.appId);
     });
   }
 });
 
 // ── Install ───────────────────────────────────────────────────────
 function doInstall() {
-  var repo  = document.getElementById("inst-repo").value.trim();
-  var port  = parseInt(document.getElementById("inst-port").value) || 0;
-  var atype = document.getElementById("inst-type").value;
-  var res   = document.getElementById("inst-result");
-  if (!repo) { alert("Saisis un repo GitHub (ex: beyp/QuickMind)"); return; }
-  res.style.display = "block";
-  res.style.background = "rgba(255,152,0,.1)";
-  res.style.color = "#ff9800";
-  res.innerHTML = "&#x23F3; Installation... git clone + setup peut prendre 1-5 min";
-  fetch("/api/store/install", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
+  var repo  = document.getElementById('inst-repo').value.trim();
+  var port  = parseInt(document.getElementById('inst-port').value) || 0;
+  var atype = document.getElementById('inst-type').value;
+  var res   = document.getElementById('inst-result');
+  if (!repo) { alert('Saisis un repo GitHub'); return; }
+  showMsg(res, 'orange', '&#x23F3; Installation en cours... (1-5 min)');
+  fetch('/api/store/install', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({github: repo, port: port, app_type: atype})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    res.style.background = d.success ? "rgba(76,175,80,.1)" : "rgba(244,67,54,.1)";
-    res.style.color = d.success ? "#4caf50" : "#f44336";
-    var typeInfo = d.detected_type ? "<br>&#x1F50D; Type: <strong>" + d.detected_type + "</strong>" + (d.detected_info ? " — " + d.detected_info : "") : "";
-    var launch   = d.launch ? (d.launch.success ? "<br>&#x25B6; " + d.launch.message : "<br>&#x26A0; " + (d.launch.message||"")) : "";
-    res.innerHTML = d.message + typeInfo + launch;
-    if (d.success) { setTimeout(function() { location.reload(); }, 2500); }
+    showMsg(res, d.success ? 'green' : 'red', d.message
+      + (d.detected_type ? ' | Type: ' + d.detected_type : '')
+      + (d.launch && d.launch.message ? ' | ' + d.launch.message : ''));
+    if (d.success) setTimeout(function() { location.reload(); }, 2500);
   })
-  .catch(function(e) { res.style.color = "#f44336"; res.textContent = "Erreur: " + e; });
+  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
 }
 
-// ── App actions ───────────────────────────────────────────────────
+// ── App Actions ───────────────────────────────────────────────────
 function appAction(action, appId) {
-  var res = document.getElementById("sr-" + appId);
+  var res = document.getElementById('sr-' + appId);
   if (!res) return;
-  res.style.display = "block";
-  res.style.color = "#ff9800";
-  var msgs = {
-    start: "&#x23F3; Démarrage...",
-    stop:  "&#x23F3; Arrêt...",
-    update:"&#x23F3; Mise à jour (git pull)...",
-    restore:"&#x23F3; Restauration appdata...",
-    scan:  "&#x1F50D; Scan appdata...",
-    uninstall:"Désinstallation..."
+  if (action === 'uninstall' && !confirm('Désinstaller ' + appId + ' ? (appdata conservé)')) return;
+
+  var METHODS = {start:'POST', stop:'POST', update:'POST', restore:'POST', scan:'GET', uninstall:'DELETE'};
+  var URLS    = {
+    start:    '/api/store/start/'   + appId,
+    stop:     '/api/store/stop/'    + appId,
+    update:   '/api/store/update/'  + appId,
+    restore:  '/api/store/restore/' + appId,
+    scan:     '/api/store/scan/'    + appId,
+    uninstall:'/api/store/'         + appId
   };
-  res.innerHTML = msgs[action] || "&#x23F3; En cours...";
+  var MSGS = {start:'Démarrage...', stop:'Arrêt...', update:'Mise à jour...', restore:'Restauration...', scan:'Scan...', uninstall:'Désinstallation...'};
 
-  var methods = {start:"POST", stop:"POST", update:"POST", restore:"POST", scan:"GET", uninstall:"DELETE"};
-  var urls = {
-    start:     "/api/store/start/"   + appId,
-    stop:      "/api/store/stop/"    + appId,
-    update:    "/api/store/update/"  + appId,
-    restore:   "/api/store/restore/" + appId,
-    scan:      "/api/store/scan/"    + appId,
-    uninstall: "/api/store/"         + appId
-  };
+  showMsg(res, 'orange', MSGS[action] || 'En cours...');
 
-  if (action === "uninstall" && !confirm("Désinstaller " + appId + " ? (appdata conservé)")) return;
-
-  fetch(urls[action], {method: methods[action]})
+  fetch(URLS[action], {method: METHODS[action]})
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    res.style.color = d.success ? "#4caf50" : "#f44336";
-    res.textContent = d.message || JSON.stringify(d);
-    if (d.success && (action === "update" || action === "uninstall")) {
+    showMsg(res, d.success ? 'green' : 'red', d.message || JSON.stringify(d));
+    if (d.success && (action === 'update' || action === 'uninstall'))
       setTimeout(function() { location.reload(); }, 1500);
-    }
-    if (d.success && action === "start") {
-      setTimeout(function() { checkRunning(appId); }, 3000);
-    }
+    if (d.success && action === 'start')
+      setTimeout(function() { checkRunning(appId); }, 2000);
   })
-  .catch(function(e) { res.style.color = "#f44336"; res.textContent = "Erreur: " + e; });
+  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
 }
 
 function checkRunning(appId) {
-  fetch("/api/store/running/" + appId)
+  fetch('/api/store/running/' + appId)
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    var btnStart = document.getElementById("btn-start-" + appId);
-    var btnStop  = document.getElementById("btn-stop-"  + appId);
-    if (btnStart) btnStart.style.opacity = d.running ? "0.4" : "1";
-    if (btnStop)  btnStop.style.opacity  = d.running ? "1"   : "0.4";
+    var s = document.getElementById('btn-start-' + appId);
+    var t = document.getElementById('btn-stop-'  + appId);
+    if (s) s.style.opacity = d.running ? '0.4' : '1';
+    if (t) t.style.opacity = d.running ? '1' : '0.4';
   }).catch(function(){});
 }
 
-// Vérifier statut au chargement
-document.addEventListener("htmx:afterSwap", function(e) {
-  if (e.target.id === "apps-list") {
-    document.querySelectorAll("[id^='btn-start-']").forEach(function(btn) {
-      checkRunning(btn.id.replace("btn-start-", ""));
-    });
-  }
-});
-
 // ── Config Modal ──────────────────────────────────────────────────
-var _configAppId = "";
+var _cfgApp = '';
 
 function openConfig(appId) {
-  _configAppId = appId;
-  var modal = document.getElementById("config-modal");
-  var body  = document.getElementById("config-body");
-  var title = document.getElementById("config-title");
-  var saveResult = document.getElementById("config-save-result");
-  title.textContent = "&#x2699;&#xFE0F; Configuration : " + appId;
-  saveResult.textContent = "";
-  body.innerHTML = "<div style='color:#888;text-align:center;padding:20px;'>&#x23F3; Chargement...</div>";
-  modal.style.display = "flex";
+  _cfgApp = appId;
+  document.getElementById('config-title').textContent = '\u2699\uFE0F Config : ' + appId;
+  document.getElementById('config-msg').textContent = '';
+  var body = document.getElementById('config-body');
+  body.innerHTML = '<p style="color:var(--dim);text-align:center;padding:20px;">&#x23F3; Chargement...</p>';
+  document.getElementById('config-modal').classList.add('open');
 
-  fetch("/api/store/" + appId + "/config")
+  fetch('/api/store/' + appId + '/config')
   .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (!d.files || Object.keys(d.files).length === 0) {
-      body.innerHTML = "<p style='color:#888;'>Aucun fichier de config trouvé (config.yaml, .env).</p><p style='color:#555;font-size:.8rem;'>Lance l'app une fois puis reviens ici.</p>";
-      return;
-    }
-    var html = "";
-    // Bannière vide / OK + bouton héritage global
-    if (d.has_empty) {
-      html += "<div style='background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.8rem;color:#f44336;display:flex;align-items:center;gap:8px;'>"
-            + "<span style='flex:1;'>&#x26A0;&#xFE0F; " + d.empty_count + " clé(s) non configurée(s)</span>"
-            + "<button onclick="inheritAll('" + appId + "')" style='background:#1e90ff;color:#fff;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:.78rem;font-weight:600;white-space:nowrap;flex-shrink:0;'>&#x1F517; Hériter tout depuis AION</button>"
-            + "</div>";
-    } else {
-      html += "<div style='background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);border-radius:6px;padding:6px 12px;margin-bottom:10px;font-size:.8rem;color:#4caf50;display:flex;align-items:center;gap:8px;'>"
-            + "<span style='flex:1;'>&#x2705; Configuration OK</span>"
-            + "<button onclick="inheritAll('" + appId + "')" style='background:transparent;border:1px solid #1e90ff55;color:#1e90ff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:.75rem;white-space:nowrap;flex-shrink:0;'>&#x1F517; Synchro AION</button>"
-            + "</div>";
-    }
-    // Champs par fichier
-    Object.entries(d.files).forEach(function(entry) {
-      var fname = entry[0];
-      var fdata = entry[1];
-      var loc   = fdata.in_appdata ? "&#x1F512; appdata/" : "&#x1F4C1; repo/";
-      html += "<div style='margin-bottom:14px;'>";
-      html += "<div style='font-size:.78rem;color:#888;margin-bottom:6px;display:flex;justify-content:space-between;'>"
-            + "<strong style='color:#e0e0e0;'>" + fname + "</strong>"
-            + "<span>" + loc + "</span></div>";
-      fdata.fields.forEach(function(f) {
-        var emptyStyle = f.empty ? "border-color:#f44336;background:rgba(244,67,54,.05);" : (f.shared ? "border-color:#1e90ff44;" : "border-color:#2a2d3e;");
-        var inputType  = f.sensitive ? "password" : "text";
-        var placeholder= f.empty ? "⚠️ Non configuré" : "";
-        var labelColor = f.empty ? "#f44336" : (f.shared ? "#1e90ff" : "#888");
-        var inputId    = "inp_" + fname.replace(/[^a-z0-9]/gi,"_") + "_" + f.key.replace(/[^a-z0-9]/gi,"_");
-        var sharedBadge= f.shared ? "<span title='Clé partagée AION' style='font-size:.65rem;background:rgba(30,144,255,.15);color:#1e90ff;padding:1px 5px;border-radius:4px;margin-left:4px;'>&#x1F517;</span>" : "";
-        html += "<div style='display:flex;align-items:center;gap:6px;margin-bottom:6px;'>";
-        html += "<label style='width:160px;font-size:.78rem;color:" + labelColor + ";flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;' title='" + f.key + "'>" + f.key + sharedBadge + "</label>";
-        html += "<input id='" + inputId + "' type='" + inputType + "'"
-              + " value='" + (f.sensitive && !f.empty ? "••••••" : f.value.replace(/'/g, "&#39;")) + "'"
-              + " data-key='" + f.key + "' data-file='" + fname + "' data-app='" + appId + "'"
-              + " data-sensitive='" + f.sensitive + "' data-realvalue='" + f.value.replace(/'/g,"&#39;") + "'"
-              + " placeholder='" + placeholder + "'"
-              + " style='flex:1;background:#12141f;border:1px solid;" + emptyStyle + "color:#e0e0e0;padding:5px 10px;border-radius:5px;font-size:.82rem;'"
-              + " onchange='markChanged(this)'>";
-        if (f.sensitive) {
-          html += "<button type='button' onclick='toggleSecret("" + inputId + "")'"
-                + " style='background:none;border:1px solid #2a2d3e;border-radius:5px;padding:4px 7px;cursor:pointer;color:#888;font-size:.85rem;flex-shrink:0;'>&#128065;</button>";
-        }
-        if (f.shared) {
-          html += "<button type='button' onclick='inheritOne("" + appId + "","" + fname + "","" + f.key + "")'"
-                + " title='Hériter depuis AION shared.env'"
-                + " style='background:rgba(30,144,255,.15);border:1px solid #1e90ff55;border-radius:5px;padding:4px 7px;cursor:pointer;color:#1e90ff;font-size:.75rem;flex-shrink:0;white-space:nowrap;'>&#x21A9; AION</button>";
-        }
-        html += "</div>";
-      });
-      html += "</div>";
-    });
-    body.innerHTML = html;
-  })
+  .then(function(d) { renderConfig(d, appId); })
   .catch(function(e) {
-    body.innerHTML = "<p style='color:#f44336;'>Erreur: " + e + "</p>";
+    document.getElementById('config-body').innerHTML =
+      '<p style="color:var(--red);">Erreur: ' + e + '</p>';
   });
+}
+
+function renderConfig(d, appId) {
+  var body = document.getElementById('config-body');
+  if (!d.files || !Object.keys(d.files).length) {
+    body.innerHTML = '<p style="color:var(--dim);">Aucun fichier de config trouvé.</p><p style="color:#555;font-size:.8rem;">Lance l'app une fois puis reviens ici.</p>';
+    return;
+  }
+
+  // Bouton hériter tout
+  var html = '<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;'
+           + 'background:rgba(' + (d.has_empty ? '244,67,54' : '76,175,80') + ',.1);'
+           + 'border:1px solid rgba(' + (d.has_empty ? '244,67,54' : '76,175,80') + ',.3);'
+           + 'border-radius:6px;padding:8px 12px;">'
+           + '<span style="flex:1;font-size:.82rem;color:' + (d.has_empty ? 'var(--red)' : 'var(--green)') + ';">'
+           + (d.has_empty ? '&#x26A0;&#xFE0F; ' + d.empty_count + ' clé(s) non configurée(s)' : '&#x2705; Configuration OK')
+           + '</span>'
+           + '<button class="btn btn-blue" data-action="inherit-all" data-app="' + appId + '" style="font-size:.78rem;padding:5px 12px;">'
+           + '&#x1F517; Hériter depuis AION</button>'
+           + '</div>';
+
+  Object.keys(d.files).forEach(function(fname) {
+    var fdata = d.files[fname];
+    html += '<div style="margin-bottom:16px;">'
+          + '<div style="font-size:.78rem;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;">'
+          + '<strong style="color:var(--text);">' + fname + '</strong>'
+          + '<span>' + (fdata.in_appdata ? '&#x1F512; appdata/' : '&#x1F4C1; repo/') + '</span></div>';
+
+    fdata.fields.forEach(function(f) {
+      var emptyBorder = f.empty ? 'var(--red)' : (f.shared ? 'rgba(30,144,255,.4)' : 'var(--border)');
+      var labelColor  = f.empty ? 'var(--red)' : (f.shared ? 'var(--accent)' : 'var(--dim)');
+      var inputType   = f.sensitive ? 'password' : 'text';
+      var displayVal  = (f.sensitive && !f.empty) ? '••••••' : f.value.replace(/"/g, '&quot;');
+
+      html += '<div class="field-row">'
+            + '<span class="field-label" style="color:' + labelColor + ';" title="' + f.key + '">'
+            + f.key + (f.shared ? ' <span style="font-size:.65rem;background:rgba(30,144,255,.2);color:var(--accent);padding:1px 4px;border-radius:3px;">AION</span>' : '') + '</span>'
+            + '<input class="field-input" type="' + inputType + '"'
+            + ' value="' + displayVal + '"'
+            + ' data-key="' + f.key + '" data-file="' + fname + '" data-app="' + appId + '"'
+            + ' data-realval="' + (f.sensitive ? '' : f.value.replace(/"/g, '&quot;')) + '"'
+            + ' placeholder="' + (f.empty ? 'Non configuré' : '') + '"'
+            + ' style="border-color:' + emptyBorder + ';"'
+            + ' oninput="this.dataset.changed='1';this.style.borderColor='var(--orange)';">'
+            + (f.sensitive ? '<button class="btn btn-gray" data-toggle-input data-inp-for="' + f.key + '|' + fname + '" style="padding:4px 8px;flex-shrink:0;" title="Afficher">&#x1F441;</button>' : '')
+            + (f.shared ? '<button class="btn btn-ghost-blue" data-action="inherit-one" data-app="' + appId + '" data-file="' + fname + '" data-key="' + f.key + '" style="font-size:.72rem;padding:4px 8px;flex-shrink:0;white-space:nowrap;">&#x21A9; AION</button>' : '')
+            + '</div>';
+    });
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+
+  // Gérer les clics dans la modale via event delegation (PAS d'onclick inline!)
+  body.removeEventListener('click', _configClickHandler);
+  body.addEventListener('click', _configClickHandler);
+}
+
+function _configClickHandler(e) {
+  // Bouton hériter tout
+  var btn = e.target.closest('[data-action="inherit-all"]');
+  if (btn) { inheritAll(btn.dataset.app); return; }
+
+  // Bouton hériter une clé
+  btn = e.target.closest('[data-action="inherit-one"]');
+  if (btn) { inheritOne(btn.dataset.app, btn.dataset.file, btn.dataset.key); return; }
+
+  // Toggle show/hide password
+  btn = e.target.closest('[data-toggle-input]');
+  if (btn) {
+    var key  = btn.dataset.inpFor;
+    var inp  = document.querySelector('[data-key="' + key.split('|')[0] + '"][data-file="' + key.split('|')[1] + '"]');
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    if (inp.type === 'text' && inp.value === '••••••') inp.value = inp.dataset.realval || '';
+    return;
+  }
 }
 
 function closeConfig() {
-  document.getElementById("config-modal").style.display = "none";
-  _configAppId = "";
+  document.getElementById('config-modal').classList.remove('open');
+  _cfgApp = '';
 }
 
-function markChanged(input) {
-  input.style.borderColor = "#ff9800";
-  input.dataset.changed = "1";
-}
-
-function toggleSecret(inputId) {
-  var inp = document.getElementById(inputId);
-  if (!inp) return;
-  if (inp.type === "password") {
-    inp.type = "text";
-    if (inp.value === "••••••") inp.value = inp.dataset.realvalue || "";
-  } else {
-    inp.type = "password";
-  }
-}
-
-function saveConfigModal() {
-  if (!_configAppId) return;
-  var inputs  = document.querySelectorAll("[data-app='" + _configAppId + "'][data-changed='1']");
+function saveConfig() {
+  if (!_cfgApp) return;
   var updates = {};
-  inputs.forEach(function(inp) {
-    if (inp.value === "••••••") return;
-    var file = inp.dataset.file;
-    if (!updates[file]) updates[file] = {};
-    updates[file][inp.dataset.key] = inp.value;
+  document.querySelectorAll('#config-body [data-changed="1"]').forEach(function(inp) {
+    if (inp.value === '••••••') return;
+    if (!updates[inp.dataset.file]) updates[inp.dataset.file] = {};
+    updates[inp.dataset.file][inp.dataset.key] = inp.value;
   });
-  var res = document.getElementById("config-save-result");
-  if (Object.keys(updates).length === 0) { res.textContent = "Aucune modification."; return; }
-  res.style.color = "#ff9800"; res.textContent = "⏳ Sauvegarde...";
-  fetch("/api/store/" + _configAppId + "/config", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
+  var msg = document.getElementById('config-msg');
+  if (!Object.keys(updates).length) { msg.textContent = 'Aucune modification.'; return; }
+  showMsg(msg, 'orange', '&#x23F3; Sauvegarde...');
+  fetch('/api/store/' + _cfgApp + '/config', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({updates: updates})
   })
   .then(function(r) { return r.json(); })
-  .then(function(d) {
-    res.style.color = d.success ? "#4caf50" : "#f44336";
-    res.textContent = d.message;
-    if (d.success) inputs.forEach(function(i) { i.style.borderColor = "#4caf50"; i.dataset.changed = "0"; });
-  })
-  .catch(function(e) { res.style.color="#f44336"; res.textContent="Erreur: "+e; });
+  .then(function(d) { showMsg(msg, d.success ? 'green' : 'red', d.message); })
+  .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
 }
 
 function inheritAll(appId) {
-  var res = document.getElementById("config-save-result");
-  res.style.color = "#ff9800"; res.textContent = "⏳ Héritage depuis AION...";
-  fetch("/api/store/" + appId + "/config/inherit", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
+  var msg = document.getElementById('config-msg');
+  showMsg(msg, 'orange', '&#x23F3; Héritage depuis AION...');
+  fetch('/api/store/' + appId + '/config/inherit', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({keys: null})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    res.style.color = d.success ? "#4caf50" : "#f44336";
-    res.textContent = d.success ? "✅ " + (d.propagated||[]).length + " clé(s) héritée(s) depuis AION" : (d.message||"Erreur");
+    showMsg(msg, d.success ? 'green' : 'red',
+      d.success ? '\u2705 ' + (d.propagated||[]).length + ' clé(s) héritée(s)' : (d.message||'Erreur'));
     if (d.success) setTimeout(function() { openConfig(appId); }, 1000);
   })
-  .catch(function(e) { res.style.color="#f44336"; res.textContent="Erreur: "+e; });
+  .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
 }
 
 function inheritOne(appId, fname, key) {
-  var res = document.getElementById("config-save-result");
-  res.style.color = "#ff9800"; res.textContent = "⏳ Héritage " + key + "...";
-  fetch("/api/store/" + appId + "/config/inherit", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
+  var msg = document.getElementById('config-msg');
+  showMsg(msg, 'orange', '&#x23F3; Héritage ' + key + '...');
+  fetch('/api/store/' + appId + '/config/inherit', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({keys: [key]})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    res.style.color = d.success ? "#4caf50" : "#f44336";
-    res.textContent = d.success ? "✅ " + key + " hérité depuis AION" : (d.message||"Erreur");
+    showMsg(msg, d.success ? 'green' : 'red',
+      d.success ? '\u2705 ' + key + ' hérité' : (d.message||'Erreur'));
     if (d.success) setTimeout(function() { openConfig(appId); }, 800);
   })
-  .catch(function(e) { res.style.color="#f44336"; res.textContent="Erreur: "+e; });
+  .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
+}
+
+// ── Utilitaire ────────────────────────────────────────────────────
+function showMsg(el, color, html) {
+  var colors = {green:'var(--green)', red:'var(--red)', orange:'var(--orange)', blue:'var(--accent)'};
+  el.style.display = 'block';
+  el.style.color   = colors[color] || color;
+  el.innerHTML     = html;
 }
 </script>
 </body>
