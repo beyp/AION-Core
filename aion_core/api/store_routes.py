@@ -244,6 +244,38 @@ def register_store_routes(app, aion_app):
     async def store_list_appdata(app_id: str):
         return {"app_id": app_id, "files": _get_store().list_appdata(app_id)}
 
+    @app.get("/api/store/{app_id}/config-html", response_class=HTMLResponse)
+    async def store_get_config_html(app_id: str, request: Request):
+        """HTML de la modale config via Jinja2 — pas de generation JS."""
+        from pathlib import Path as _P
+        from fastapi.templating import Jinja2Templates as _Jinja
+        from aion_core.store.config_editor import ConfigEditor
+        import json as _j
+        install_path = appdata_path = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    s = d.get("apps",{}).get(app_id,{}).get("store",{})
+                    install_path = s.get("install_path","")
+                    appdata_path = s.get("appdata_path","")
+                    if install_path: break
+                except Exception: pass
+        tdir = _P(__file__).parent.parent / "web" / "templates"
+        T    = _Jinja(directory=str(tdir))
+        ctx  = {"app_id": app_id, "files": {}, "has_empty": False, "empty_count": 0, "error": None}
+        if not install_path:
+            ctx["error"] = f"App {app_id!r} introuvable"
+        else:
+            try:
+                ed   = ConfigEditor(app_id, install_path, appdata_path)
+                data = ed.read_all()
+                ctx.update({"files": data.get("files",{}), "has_empty": data.get("has_empty",False),
+                            "empty_count": data.get("empty_count",0)})
+            except Exception as e:
+                ctx["error"] = str(e)
+        return T.TemplateResponse(request=request, name="config_modal.html", context=ctx)
+
     @app.get("/api/store/{app_id}/config")
     async def store_get_config(app_id: str):
         """Lit config app + infos shared (GROQ_API_KEY, ADO_PAT, etc.)."""
