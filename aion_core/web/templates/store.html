@@ -239,96 +239,20 @@ var _cfgApp = '';
 
 function openConfig(appId) {
   _cfgApp = appId;
-  document.getElementById('config-title').textContent = '\u2699\uFE0F Config : ' + appId;
+  document.getElementById('config-title').textContent = '⚙️ Config : ' + appId;
   document.getElementById('config-msg').textContent = '';
   var body = document.getElementById('config-body');
-  body.innerHTML = '<p style="color:var(--dim);text-align:center;padding:20px;">&#x23F3; Chargement...</p>';
+  body.innerHTML = '<p style="color:var(--dim);text-align:center;padding:20px;">⏳ Chargement...</p>';
   document.getElementById('config-modal').classList.add('open');
-
-  fetch('/api/store/' + appId + '/config')
-  .then(function(r) { return r.json(); })
-  .then(function(d) { renderConfig(d, appId); })
+  // Charger le HTML via Jinja2 server-side (plus de generation JS)
+  fetch('/api/store/' + appId + '/config-html')
+  .then(function(r) { return r.text(); })
+  .then(function(html) {
+    body.innerHTML = html;
+  })
   .catch(function(e) {
-    document.getElementById('config-body').innerHTML =
-      '<p style="color:var(--red);">Erreur: ' + e + '</p>';
+    body.innerHTML = '<p style="color:var(--red);">Erreur: ' + e + '</p>';
   });
-}
-
-function renderConfig(d, appId) {
-  var body = document.getElementById('config-body');
-  if (!d.files || !Object.keys(d.files).length) {
-    body.innerHTML = '<p style="color:var(--dim);">Aucun fichier de config trouvé.</p><p style="color:#555;font-size:.8rem;">Lance l'app une fois puis reviens ici.</p>';
-    return;
-  }
-
-  // Bouton hériter tout
-  var html = '<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;'
-           + 'background:rgba(' + (d.has_empty ? '244,67,54' : '76,175,80') + ',.1);'
-           + 'border:1px solid rgba(' + (d.has_empty ? '244,67,54' : '76,175,80') + ',.3);'
-           + 'border-radius:6px;padding:8px 12px;">'
-           + '<span style="flex:1;font-size:.82rem;color:' + (d.has_empty ? 'var(--red)' : 'var(--green)') + ';">'
-           + (d.has_empty ? '&#x26A0;&#xFE0F; ' + d.empty_count + ' clé(s) non configurée(s)' : '&#x2705; Configuration OK')
-           + '</span>'
-           + '<button class="btn btn-blue" data-action="inherit-all" data-app="' + appId + '" style="font-size:.78rem;padding:5px 12px;">'
-           + '&#x1F517; Hériter depuis AION</button>'
-           + '</div>';
-
-  Object.keys(d.files).forEach(function(fname) {
-    var fdata = d.files[fname];
-    html += '<div style="margin-bottom:16px;">'
-          + '<div style="font-size:.78rem;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;">'
-          + '<strong style="color:var(--text);">' + fname + '</strong>'
-          + '<span>' + (fdata.in_appdata ? '&#x1F512; appdata/' : '&#x1F4C1; repo/') + '</span></div>';
-
-    fdata.fields.forEach(function(f) {
-      var emptyBorder = f.empty ? 'var(--red)' : (f.shared ? 'rgba(30,144,255,.4)' : 'var(--border)');
-      var labelColor  = f.empty ? 'var(--red)' : (f.shared ? 'var(--accent)' : 'var(--dim)');
-      var inputType   = f.sensitive ? 'password' : 'text';
-      var displayVal  = (f.sensitive && !f.empty) ? '••••••' : f.value.replace(/"/g, '&quot;');
-
-      html += '<div class="field-row">'
-            + '<span class="field-label" style="color:' + labelColor + ';" title="' + f.key + '">'
-            + f.key + (f.shared ? ' <span style="font-size:.65rem;background:rgba(30,144,255,.2);color:var(--accent);padding:1px 4px;border-radius:3px;">AION</span>' : '') + '</span>'
-            + '<input class="field-input" type="' + inputType + '"'
-            + ' value="' + displayVal + '"'
-            + ' data-key="' + f.key + '" data-file="' + fname + '" data-app="' + appId + '"'
-            + ' data-realval="' + (f.sensitive ? '' : f.value.replace(/"/g, '&quot;')) + '"'
-            + ' placeholder="' + (f.empty ? 'Non configuré' : '') + '"'
-            + ' style="border-color:' + emptyBorder + ';"'
-            + ' oninput="this.dataset.changed='1';this.style.borderColor='var(--orange)';">'
-            + (f.sensitive ? '<button class="btn btn-gray" data-toggle-input data-inp-for="' + f.key + '|' + fname + '" style="padding:4px 8px;flex-shrink:0;" title="Afficher">&#x1F441;</button>' : '')
-            + (f.shared ? '<button class="btn btn-ghost-blue" data-action="inherit-one" data-app="' + appId + '" data-file="' + fname + '" data-key="' + f.key + '" style="font-size:.72rem;padding:4px 8px;flex-shrink:0;white-space:nowrap;">&#x21A9; AION</button>' : '')
-            + '</div>';
-    });
-    html += '</div>';
-  });
-
-  body.innerHTML = html;
-
-  // Gérer les clics dans la modale via event delegation (PAS d'onclick inline!)
-  body.removeEventListener('click', _configClickHandler);
-  body.addEventListener('click', _configClickHandler);
-}
-
-function _configClickHandler(e) {
-  // Bouton hériter tout
-  var btn = e.target.closest('[data-action="inherit-all"]');
-  if (btn) { inheritAll(btn.dataset.app); return; }
-
-  // Bouton hériter une clé
-  btn = e.target.closest('[data-action="inherit-one"]');
-  if (btn) { inheritOne(btn.dataset.app, btn.dataset.file, btn.dataset.key); return; }
-
-  // Toggle show/hide password
-  btn = e.target.closest('[data-toggle-input]');
-  if (btn) {
-    var key  = btn.dataset.inpFor;
-    var inp  = document.querySelector('[data-key="' + key.split('|')[0] + '"][data-file="' + key.split('|')[1] + '"]');
-    if (!inp) return;
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-    if (inp.type === 'text' && inp.value === '••••••') inp.value = inp.dataset.realval || '';
-    return;
-  }
 }
 
 function closeConfig() {
