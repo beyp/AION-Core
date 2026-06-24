@@ -524,6 +524,91 @@ def register_store_routes(app, aion_app):
     # ── Page Web App Store ────────────────────────────────────────
 
 
+
+    # ── Docker Manager routes ─────────────────────────────────────
+
+    @app.get("/api/docker/status")
+    async def docker_status():
+        """Statut de Docker Desktop."""
+        from aion_core.store.docker_manager import DockerManager
+        return DockerManager.get_docker_status()
+
+    @app.get("/api/docker/containers")
+    async def docker_containers():
+        """Liste tous les containers (running + stopped)."""
+        from aion_core.store.docker_manager import DockerManager
+        dm = DockerManager()
+        return {"containers": dm.list_containers()}
+
+    @app.post("/api/docker/start/{app_id}")
+    async def docker_start(app_id: str, request: Request):
+        """Lance un container via docker compose.
+        Body: {"install_path": "...", "build": false}
+        """
+        from pathlib import Path as _P
+        from aion_core.store.docker_manager import DockerManager
+        import json as _j
+        body = {}
+        try: body = await request.json()
+        except Exception: pass
+
+        # Chercher l'install_path depuis le registre si non fourni
+        install_path = body.get("install_path", "")
+        if not install_path:
+            for rf in [_P("apps.local.json"), _P("apps.json")]:
+                if rf.exists():
+                    try:
+                        d = _j.loads(rf.read_text(encoding="utf-8"))
+                        install_path = d.get("apps",{}).get(app_id,{}).get("store",{}).get("install_path","")
+                        if install_path: break
+                    except Exception: pass
+
+        if not install_path:
+            return {"success": False, "message": f"install_path introuvable pour {app_id}"}
+
+        dm = DockerManager()
+        return dm.start(app_id, install_path, build=body.get("build", False))
+
+    @app.post("/api/docker/stop/{app_id}")
+    async def docker_stop(app_id: str):
+        """Stoppe un container."""
+        from pathlib import Path as _P
+        from aion_core.store.docker_manager import DockerManager
+        import json as _j
+        install_path = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    install_path = d.get("apps",{}).get(app_id,{}).get("store",{}).get("install_path","")
+                    if install_path: break
+                except Exception: pass
+        dm = DockerManager()
+        return dm.stop(app_id, install_path)
+
+    @app.get("/api/docker/running/{app_id}")
+    async def docker_is_running(app_id: str):
+        """Verifie si un container tourne."""
+        from aion_core.store.docker_manager import DockerManager
+        dm = DockerManager()
+        return {"app_id": app_id, "running": dm.is_running(app_id)}
+
+    @app.get("/api/docker/logs/{app_id}")
+    async def docker_logs(app_id: str, lines: int = 50):
+        """Retourne les derniers logs d'un container."""
+        from aion_core.store.docker_manager import DockerManager
+        dm = DockerManager()
+        return {"app_id": app_id, "logs": dm.get_logs(app_id, lines)}
+
+    @app.get("/docker", response_class=HTMLResponse)
+    async def docker_page(request: Request):
+        """Page de gestion Docker."""
+        from pathlib import Path as _P
+        from fastapi.templating import Jinja2Templates as _Jinja
+        tdir = _P(__file__).parent.parent / "web" / "templates"
+        T    = _Jinja(directory=str(tdir))
+        return T.TemplateResponse(request=request, name="docker.html", context={})
+
     @app.get("/store", response_class=HTMLResponse)
     async def store_page(request: Request):
         """Page App Store — utilise le template store.html + htmx pour les cards."""
