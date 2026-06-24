@@ -325,64 +325,55 @@ def create_app(aion_app) -> FastAPI:
 
     @app.get("/api/apps/status", response_class=__import__("fastapi.responses", fromlist=["HTMLResponse"]).HTMLResponse)
     async def api_apps_status():
-        """
-        Statut live de toutes les apps — appele par le dashboard htmx.
-        Retourne un fragment HTML avec pastilles online/offline.
-        """
-        import json as _json
-        from pathlib import Path as _Path
-        from fastapi.responses import HTMLResponse as _HTMLResponse
+        """Statut apps — parallèle, timeout 0.5s max."""
+        import json as _j, asyncio as _aio
+        from pathlib import Path as _P
+        from fastapi.responses import HTMLResponse as _HR
+        from concurrent.futures import ThreadPoolExecutor as _TPE
 
         registry = {"apps": {}}
-        for rf in [_Path("apps.json"), _Path("apps.local.json")]:
+        for rf in [_P("apps.json"), _P("apps.local.json")]:
             if rf.exists():
                 try:
-                    data = _json.loads(rf.read_text(encoding="utf-8"))
-                    registry["apps"].update(data.get("apps", {}))
-                except Exception:
-                    pass
+                    registry["apps"].update(_j.loads(rf.read_text(encoding="utf-8")).get("apps",{}))
+                except Exception: pass
 
-        icons = {
-            "check":     "\u2705",
-            "circle":    "\U0001f535",
-            "clipboard": "\U0001f4cb",
-            "monitor":   "\U0001f5a5\ufe0f",
-            "clock":     "\u23f0",
-            "package":   "\U0001f4e6",
-        }
+        ICONS = {"check":"✅","circle":"🔵","clipboard":"📋","monitor":"🖥️","clock":"⏰","package":"📦"}
+
+        apps = [(aid, cfg) for aid, cfg in registry.get("apps",{}).items()
+                if cfg.get("status") in ("active","installed")]
+
+        def _ping(item):
+            aid, cfg = item
+            url = cfg.get("url", "")
+            if not url: return aid, cfg, True
+            try:
+                import requests as _rq
+                return aid, cfg, _rq.get(url.rstrip("/")+cfg.get("health_endpoint","/health"), timeout=0.5).status_code < 400
+            except Exception:
+                return aid, cfg, False
+
+        results = []
+        if apps:
+            loop = _aio.get_event_loop()
+            with _TPE(max_workers=min(8, len(apps))) as ex:
+                done = await _aio.gather(*[loop.run_in_executor(ex, _ping, a) for a in apps], return_exceptions=True)
+            results = [r for r in done if not isinstance(r, Exception)]
+
         rows = []
-        for app_id, cfg in registry.get("apps", {}).items():
-            if cfg.get("status") not in ("active", "installed"):
-                continue
-            url       = cfg.get("url", "")
-            health_ep = cfg.get("health_endpoint", "/health")
-            is_online = False
-            if url:
-                try:
-                    import requests as _req
-                    r = _req.get(url.rstrip("/") + health_ep, timeout=1.5)
-                    is_online = r.status_code < 400
-                except Exception:
-                    pass
-            else:
-                is_online = True  # apps locales (system, timer)
-
-            color    = "var(--green)" if is_online else "var(--red)"
-            status   = "online" if is_online else "offline"
-            icon_key = cfg.get("icon", "package")
-            icon     = icons.get(icon_key, "\U0001f4e6")
-            name     = cfg.get("name", app_id)
-            rows.append(
-                f'<div style="display:flex;align-items:center;gap:10px;padding:7px 0;'
-                f'border-bottom:1px solid var(--border);font-size:.85rem;">'
-                f'<span>{icon}</span>'
-                f'<span style="flex:1;"><a href="/app/{app_id}" style="color:var(--text);text-decoration:none;">{name}</a></span>'
-                f'<span style="color:{color};font-size:.78rem;font-weight:600;">{status}</span>'
-                f'</div>'
-            )
+        for aid, cfg, up in results:
+            c = "var(--green)" if up else "var(--red)"
+            s = "online" if up else "offline"
+            icon = ICONS.get(cfg.get("icon","package"),"📦")
+            name = cfg.get("name", aid)
+            rows.append(f'<div style="display:flex;align-items:center;gap:10px;padding:7px 0;'
+                         f'border-bottom:1px solid var(--border);font-size:.85rem;">'
+                         f'<span>{icon}</span>'
+                         f'<span style="flex:1;"><a href="/app/{aid}" style="color:var(--text);text-decoration:none;">{name}</a></span>'
+                         f'<span style="color:{c};font-size:.78rem;font-weight:600;">{s}</span></div>')
 
         html = "\n".join(rows) if rows else '<p style="color:var(--dim);font-size:.83rem;">Aucune app active.</p>'
-        return _HTMLResponse(html)
+        return _HR(html)
 
     # ── Pages Web statiques ───────────────────────────────────────
 
