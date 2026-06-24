@@ -1,0 +1,54 @@
+{% if error %}
+<p style="color:var(--red);">{{ error }}</p>
+{% elif not files %}
+<p style="color:var(--dim);">Aucun fichier de config trouvé (config.yaml, .env).</p>
+<p style="color:#555;font-size:.8rem;">Lance l'app une fois puis reviens ici.</p>
+{% else %}
+<div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;
+  background:rgba({% if has_empty %}244,67,54{% else %}76,175,80{% endif %},.1);
+  border:1px solid rgba({% if has_empty %}244,67,54{% else %}76,175,80{% endif %},.3);
+  border-radius:6px;padding:8px 12px;">
+  <span style="flex:1;font-size:.82rem;color:{% if has_empty %}var(--red){% else %}var(--green){% endif %};">
+    {% if has_empty %}&#x26A0;&#xFE0F; {{ empty_count }} clé(s) non configurée(s){% else %}&#x2705; Configuration OK{% endif %}
+  </span>
+  <button class="btn btn-blue" style="font-size:.78rem;padding:5px 12px;"
+          onclick="inheritAll('{{ app_id }}')">
+    &#x1F517; Hériter depuis AION
+  </button>
+</div>
+
+{% for fname, fdata in files.items() %}
+<div style="margin-bottom:16px;">
+  <div style="font-size:.78rem;color:var(--dim);margin-bottom:6px;display:flex;justify-content:space-between;">
+    <strong style="color:var(--text);">{{ fname }}</strong>
+    <span>{% if fdata.in_appdata %}&#x1F512; appdata/{% else %}&#x1F4C1; repo/{% endif %}</span>
+  </div>
+
+  {% for f in fdata.fields %}
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+    <span style="width:170px;font-size:.78rem;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;
+          white-space:nowrap;color:{% if f.empty %}var(--red){% elif f.shared %}var(--accent){% else %}var(--dim){% endif %};"
+          title="{{ f.key }}">
+      {{ f.key }}
+      {% if f.shared %}<span style="font-size:.62rem;background:rgba(30,144,255,.2);color:var(--accent);
+        padding:1px 4px;border-radius:3px;margin-left:3px;">AION</span>{% endif %}
+    </span>
+    <input class="field-input" type="{% if f.sensitive %}password{% else %}text{% endif %}"
+           value="{% if f.sensitive and not f.empty %}••••••{% else %}{{ f.value | e }}{% endif %}"
+           data-key="{{ f.key }}" data-file="{{ fname }}" data-app="{{ app_id }}"
+           placeholder="{% if f.empty %}Non configuré{% endif %}"
+           style="flex:1;padding:6px 10px;font-size:.82rem;border-color:{% if f.empty %}var(--red){% elif f.shared %}rgba(30,144,255,.4){% else %}var(--border){% endif %};"
+           oninput="this.dataset.changed='1';this.style.borderColor='var(--orange)';">
+    {% if f.sensitive %}
+    <button class="btn btn-gray" style="padding:4px 8px;flex-shrink:0;"
+            onclick="togglePwd(this)">&#x1F441;</button>
+    {% endif %}
+    {% if f.shared %}
+    <button class="btn btn-ghost-blue" style="font-size:.72rem;padding:4px 8px;flex-shrink:0;white-space:nowrap;"
+            onclick="inheritOne('{{ app_id }}','{{ fname }}','{{ f.key }}')">&#x21A9; AION</button>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+{% endif %}
