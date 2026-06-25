@@ -18,8 +18,9 @@ Apps disponibles :
 - system     : systeme (CPU, RAM, reseau, disque, uptime, sleep, hibernate)
 - timer      : compte a rebours avec notification
 - memory     : memoire AION (remember, recall, forget, list, import_json, stats)
-- appctl     : controle des apps (start, stop, status, list_apps)
-- services   : micro-services AION (calcul capacité, actions système, etc.)
+- appctl        : controle des apps (start, stop, status, list_apps)
+- services      : micro-services AION (calcul capacite, actions systeme, etc.)
+- service_admin : administration des services (list, delete, info, disable, enable)
 - search     : recherche dans plusieurs apps simultanement
 - direct     : repondre directement sans app
 
@@ -37,6 +38,9 @@ Exemples :
 "mes items ADO en cours" → {"app":"ado","action":"search","params":{"state":"In Progress","assigned":"@me"},"confidence":0.95,"response_hint":"Je cherche vos items en cours."}
 "CPU et RAM" → {"app":"system","action":"cpu_ram","params":{},"confidence":0.99,"response_hint":"Je vérifie CPU et RAM."}
 "cherche formation" → {"app":"search","action":"universal","params":{"keyword":"formation"},"confidence":0.90,"response_hint":"Je cherche formation partout."}
+"liste les services" → {"app":"service_admin","action":"list","params":{},"confidence":0.98,"response_hint":"Voici les services disponibles."}
+"supprime le service capacity_calc" → {"app":"service_admin","action":"delete","params":{"name":"capacity_calc"},"confidence":0.97,"response_hint":"Je supprime le service capacity_calc."}
+"desactive le service system_power" → {"app":"service_admin","action":"disable","params":{"name":"system_power"},"confidence":0.96,"response_hint":"Service desactive."}
 "mets en veille" → {"app":"system","action":"sleep","params":{},"confidence":0.99,"response_hint":"Mise en veille dans quelques secondes."}
 "veille prolongee" → {"app":"system","action":"hibernate","params":{},"confidence":0.99,"response_hint":"Mise en veille prolongee."}
 "timer 25 minutes" → {"app":"timer","action":"start","params":{"duration":"25m","message":"Temps ecoulé !"},"confidence":0.99,"response_hint":"Timer 25 minutes lance."}
@@ -181,6 +185,8 @@ class AppRouter:
             result_text = self._handle_appctl(action, params)
         elif app_name == "services":
             result_text = self._handle_services(action, params)
+        elif app_name == "service_admin":
+            result_text = self._handle_service_admin(action, params)
 
         # 3. Construire la réponse finale
         final_response = voice_hint
@@ -463,8 +469,198 @@ class AppRouter:
 
         return f"Action appctl inconnue: '{action}'. Actions: start, stop, status, list_apps, restart"
 
+    def _handle_service_admin(self, action: str, params: dict) -> str:
+        """
+        Administration des services AION-Core (Option A — tout dans main).
+
+        Actions :
+          list    : liste tous les services disponibles et leur statut
+          info    : details d'un service (params: name)
+          delete  : supprime un service (fichier + registry) (params: name)
+          disable : desactive un service sans le supprimer (params: name)
+          enable  : reactive un service desactive (params: name)
+          create  : cree un nouveau service vide (params: name, description)
+        """
+        import json
+        from pathlib import Path
+
+        REGISTRY_PATH = Path("aion_core/services/registry.json")
+        BUILTINS_DIR  = Path("aion_core/services/builtins")
+
+        def _load_registry() -> dict:
+            if REGISTRY_PATH.exists():
+                try:
+                    with open(REGISTRY_PATH, encoding="utf-8") as f:
+                        return json.load(f)
+                except Exception:
+                    pass
+            return {"version": "1.0", "services": {}}
+
+        def _save_registry(reg: dict) -> None:
+            REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(REGISTRY_PATH, "w", encoding="utf-8") as f:
+                json.dump(reg, f, indent=2, ensure_ascii=False)
+
+        reg = _load_registry()
+        services = reg.get("services", {})
+
+        # ── list ──────────────────────────────────────────────────
+        if action in ("list", "liste", "show", "all"):
+            if not services:
+                return "\U0001f4e6 Aucun service enregistr\u00e9."
+            lines = [f"\u26a1 Services AION ({len(services)}) :"]
+            for name, info in services.items():
+                status = info.get("status", "active")
+                icon   = "\u2705" if status == "active" else "\u274c"
+                desc   = info.get("description", "")[:50]
+                lines.append(f"  {icon} **{name}** — {desc}")
+                actions_list = info.get("actions", [])
+                if actions_list:
+                    lines.append(f"     Actions : {', '.join(actions_list)}")
+            return "\n".join(lines)
+
+        # ── info ──────────────────────────────────────────────────
+        elif action in ("info", "details", "describe"):
+            name = params.get("name", params.get("service", ""))
+            if not name:
+                return "Quel service ? Ex: info service capacity_calc"
+            svc = services.get(name)
+            if not svc:
+                return f"Service \'{name}\' introuvable. Services dispo: {list(services.keys())}"
+            file_path = BUILTINS_DIR / f"{name}.py"
+            exists = file_path.exists()
+            lines = [
+                f"\u26a1 **{name}**",
+                f"  Description : {svc.get('description', '')}",
+                f"  Statut      : {svc.get('status', 'active')}",
+                f"  Actions     : {', '.join(svc.get('actions', []))}",
+                f"  Fichier     : {file_path} ({'\u2705 present' if exists else '\u274c absent'})",
+                f"  Builtin     : {svc.get('builtin', False)}",
+            ]
+            if svc.get("example_prompt"):
+                lines.append(f"  Exemple     : {svc['example_prompt']}")
+            return "\n".join(lines)
+
+        # ── delete ────────────────────────────────────────────────
+        elif action in ("delete", "remove", "supprime", "supprimer"):
+            name = params.get("name", params.get("service", ""))
+            if not name:
+                return "Quel service supprimer ? Ex: supprime le service capacity_calc"
+            if name not in services:
+                return f"Service \'{name}\' introuvable dans le registre."
+
+            # Demander confirmation si service builtin
+            svc = services[name]
+            if svc.get("builtin") and not params.get("confirm"):
+                return (f"\u26a0\ufe0f {name} est un service builtin. "
+                        f"Dis \"oui supprime {name}\" pour confirmer.")
+
+            # Supprimer le fichier Python
+            file_path = BUILTINS_DIR / f"{name}.py"
+            deleted_file = False
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    deleted_file = True
+                except Exception as e:
+                    return f"\u274c Impossible de supprimer {file_path}: {e}"
+
+            # Retirer du registre
+            del services[name]
+            reg["services"] = services
+            _save_registry(reg)
+
+            msg = f"\U0001f5d1\ufe0f Service \'{name}\' supprim\u00e9"
+            if deleted_file:
+                msg += f" (fichier {file_path.name} supprim\u00e9)"
+            msg += "."
+            return msg
+
+        # ── disable ───────────────────────────────────────────────
+        elif action in ("disable", "desactive", "desactiver"):
+            name = params.get("name", params.get("service", ""))
+            if not name or name not in services:
+                return f"Service \'{name}\' introuvable."
+            services[name]["status"] = "disabled"
+            reg["services"] = services
+            _save_registry(reg)
+            return f"\u23f8\ufe0f Service \'{name}\' d\u00e9sactiv\u00e9 (fichier conserv\u00e9)."
+
+        # ── enable ────────────────────────────────────────────────
+        elif action in ("enable", "active", "activer", "reactive"):
+            name = params.get("name", params.get("service", ""))
+            if not name or name not in services:
+                return f"Service \'{name}\' introuvable."
+            services[name]["status"] = "active"
+            reg["services"] = services
+            _save_registry(reg)
+            return f"\u2705 Service \'{name}\' r\u00e9activ\u00e9."
+
+        # ── create ────────────────────────────────────────────────
+        elif action in ("create", "new", "ajoute", "creer"):
+            name = params.get("name", params.get("service", "")).strip().lower().replace(" ", "_")
+            desc = params.get("description", params.get("desc", f"Service {name}"))
+            if not name:
+                return "Quel nom pour le nouveau service ?"
+            if name in services:
+                return f"Service \'{name}\' existe d\u00e9j\u00e0."
+
+            # Creer le fichier Python template
+            BUILTINS_DIR.mkdir(parents=True, exist_ok=True)
+            file_path = BUILTINS_DIR / f"{name}.py"
+            template  = f'''"""
+{name}.py -- Service AION : {desc}
+
+Utilisation via l\'IA Chat :
+  "{name} <parametres>"
+"""
+from typing import Any
+
+
+class Service:
+    name        = "{name}"
+    description = "{desc}"
+    actions     = ["run", "help"]
+
+    def execute(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
+        if action == "help":
+            return {{"success": True, "message": f"Service {{self.name}}\\nActions: {{self.actions}}"}}
+        return self._run(params)
+
+    def _run(self, params: dict[str, Any]) -> dict[str, Any]:
+        # TODO: implementer la logique du service
+        return {{
+            "success": True,
+            "message": f"Service {name} execute avec {{params}}",
+        }}
+'''
+            try:
+                file_path.write_text(template, encoding="utf-8")
+            except Exception as e:
+                return f"\u274c Impossible de cr\u00e9er {file_path}: {e}"
+
+            # Enregistrer dans registry.json
+            services[name] = {
+                "name":        name,
+                "description": desc,
+                "file":        str(file_path),
+                "builtin":     False,
+                "status":      "active",
+                "actions":     ["run", "help"],
+            }
+            reg["services"] = services
+            _save_registry(reg)
+
+            return (f"\u2705 Service \'{name}\' cr\u00e9\u00e9 !\n"
+                    f"  Fichier : {file_path}\n"
+                    f"  Modifie le fichier pour impl\u00e9menter la logique.\n"
+                    f"  Puis dis-moi de le tester : \'teste {name}\'")
+
+        return (f"Action service_admin inconnue : \'{action}\'.\n"
+                f"Actions : list, info, delete, disable, enable, create")
+
     def _handle_services(self, service_name: str, params: dict) -> str:
-        """Délègue vers AION-Services (port 8001)."""
+        """D\u00e9l\u00e8gue vers AION-Services (port 8001)."""
         import os, requests as _req
         port   = int(os.getenv("AION_SERVICES_PORT", "8001"))
         action = params.pop("action", service_name) if isinstance(params, dict) else service_name
