@@ -6,25 +6,44 @@
   "services": {
     "capacity_calc": {
       "name": "capacity_calc",
-      "description": "Calcul de charge/capacité projet — durée, personnes, répartition",
+      "description": "Calcul de charge projet",
       "file": "aion_core/services/builtins/capacity_calc.py",
       "builtin": true,
+      "status": "active",
       "actions": [
         "calculate",
         "help"
-      ],
-      "github": "beyp/AION-Core",
-      "branch": "main",
-      "commit": "2b7fb8d6474b",
-      "added": "2026-06-23",
-      "example_prompt": "Calcule la capacité : 1 tâche de 20 jours, 2 personnes, répartition 50/50",
-      "params": {
-        "duration_days": "int — durée en jours ouvrables",
-        "people": "int — nombre de personnes (défaut: 1)",
-        "split": "str — répartition ex '50/50', '80/20' (défaut: égale)",
-        "hours_per_day": "float — heures/jour (défaut: 8.0)",
-        "task_name": "str — nom de la tâche (optionnel)"
-      }
+      ]
+    },
+    "git_status": {
+      "name": "git_status",
+      "description": "Statut git de tous les repos AION_APPS",
+      "file": "aion_core/services/builtins/git_status.py",
+      "builtin": true,
+      "status": "active",
+      "actions": [
+        "status"
+      ]
+    },
+    "env_checker": {
+      "name": "env_checker",
+      "description": "Verification des .env - cles manquantes",
+      "file": "aion_core/services/builtins/env_checker.py",
+      "builtin": true,
+      "status": "active",
+      "actions": [
+        "check"
+      ]
+    },
+    "ado_search": {
+      "name": "ado_search",
+      "description": "Recherche work items Azure DevOps",
+      "file": "aion_core/services/builtins/ado_search.py",
+      "builtin": true,
+      "status": "active",
+      "actions": [
+        "search"
+      ]
     }
   }
 }
