@@ -1,6 +1,6 @@
 {
-  "_readme": "Registre des services AION disponibles. Cherry-pick depuis la branche 'services'.",
-  "_branch": "services",
+  "_readme": "Services AION-Core — scripts Python executes directement, pas de port separé.",
+  "_branch": "main",
   "_install": "git cherry-pick <commit_sha>  ou  POST /api/services/install",
   "version": "1.0",
   "services": {
@@ -25,25 +25,6 @@
         "hours_per_day": "float — heures/jour (défaut: 8.0)",
         "task_name": "str — nom de la tâche (optionnel)"
       }
-    },
-    "system_power": {
-      "name": "system_power",
-      "description": "Contrôle alimentation Windows — sleep, shutdown, reboot, schedule",
-      "file": "aion_core/services/builtins/system_power.py",
-      "builtin": true,
-      "actions": [
-        "sleep",
-        "shutdown",
-        "reboot",
-        "cancel",
-        "status"
-      ],
-      "github": "beyp/AION-Core",
-      "branch": "main",
-      "commit": "08f77fa19f11",
-      "added": "2026-06-23",
-      "status": "active",
-      "example_prompt": "Mets l'ordinateur en veille dans 30 minutes"
     }
   }
 }
