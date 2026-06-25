@@ -168,6 +168,30 @@ def create_app(aion_app) -> FastAPI:
             "message":  f"{len(imported)} cle(s) importee(s) dans la memoire AION",
         }
 
+    # ── System Power ──────────────────────────────────────────────
+
+    @app.post("/api/system/sleep")
+    async def system_sleep():
+        """Mise en veille simple (Sleep/Suspend) — RAM conservee."""
+        result = aion_app.app_router._apps.get("system")
+        if result:
+            try:
+                return {"result": result.execute("sleep", {}), "ok": True}
+            except Exception as e:
+                return {"result": str(e), "ok": False}
+        return {"result": "Connecteur system non disponible", "ok": False}
+
+    @app.post("/api/system/hibernate")
+    async def system_hibernate():
+        """Mise en veille prolongee (Hibernate) — RAM sauvegardee sur disque."""
+        result = aion_app.app_router._apps.get("system")
+        if result:
+            try:
+                return {"result": result.execute("hibernate", {}), "ok": True}
+            except Exception as e:
+                return {"result": str(e), "ok": False}
+        return {"result": "Connecteur system non disponible", "ok": False}
+
     # ── Updater AION-Core ─────────────────────────────────────────
 
     @app.get("/api/update/status")
