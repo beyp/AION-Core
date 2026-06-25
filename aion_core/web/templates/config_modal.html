@@ -34,8 +34,9 @@
         padding:1px 4px;border-radius:3px;margin-left:3px;">AION</span>{% endif %}
     </span>
     <input class="field-input" type="{% if f.sensitive %}password{% else %}text{% endif %}"
-           value="{% if f.sensitive and not f.empty %}••••••{% else %}{{ f.value | e }}{% endif %}"
+           value="{{ f.value | e }}"
            data-key="{{ f.key }}" data-file="{{ fname }}" data-app="{{ app_id }}"
+           data-sensitive="{% if f.sensitive %}1{% else %}0{% endif %}"
            placeholder="{% if f.empty %}Non configuré{% endif %}"
            style="flex:1;padding:6px 10px;font-size:.82rem;border-color:{% if f.empty %}var(--red){% elif f.shared %}rgba(30,144,255,.4){% else %}var(--border){% endif %};"
            oninput="this.dataset.changed='1';this.style.borderColor='var(--orange)';">
