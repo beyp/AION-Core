@@ -15,7 +15,7 @@ Apps disponibles :
 - quickmind  : gestion de tâches (ajouter, lister, modifier, supprimer)
 - ado        : Azure DevOps (items, statuts, recherche)
 - projectmind: gestion de projets (ProjectMind)
-- system     : systeme (CPU, RAM, reseau, disque, uptime)
+- system     : systeme (CPU, RAM, reseau, disque, uptime, sleep, hibernate)
 - timer      : compte a rebours avec notification
 - memory     : memoire AION (remember, recall, forget, list, import_json, stats)
 - appctl     : controle des apps (start, stop, status, list_apps)
@@ -37,6 +37,8 @@ Exemples :
 "mes items ADO en cours" → {"app":"ado","action":"search","params":{"state":"In Progress","assigned":"@me"},"confidence":0.95,"response_hint":"Je cherche vos items en cours."}
 "CPU et RAM" → {"app":"system","action":"cpu_ram","params":{},"confidence":0.99,"response_hint":"Je vérifie CPU et RAM."}
 "cherche formation" → {"app":"search","action":"universal","params":{"keyword":"formation"},"confidence":0.90,"response_hint":"Je cherche formation partout."}
+"mets en veille" → {"app":"system","action":"sleep","params":{},"confidence":0.99,"response_hint":"Mise en veille dans quelques secondes."}
+"veille prolongee" → {"app":"system","action":"hibernate","params":{},"confidence":0.99,"response_hint":"Mise en veille prolongee."}
 "timer 25 minutes" → {"app":"timer","action":"start","params":{"duration":"25m","message":"Temps ecoulé !"},"confidence":0.99,"response_hint":"Timer 25 minutes lance."}
 "importe ces clés en mémoire: {..." → {"app":"memory","action":"import_json","params":{"data":{...}},"confidence":0.97,"response_hint":"J'importe les clés en mémoire."}
 "liste ma mémoire" → {"app":"memory","action":"list","params":{},"confidence":0.98,"response_hint":"Voici ta mémoire."}
