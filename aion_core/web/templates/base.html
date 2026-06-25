@@ -108,6 +108,15 @@ header .spacer{flex:1;}
       padding:16px;z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,.5);">
     </div>
   </div>
+  <!-- Boutons veille -->
+  <button class="hbtn" title="Veille simple (Sleep)" style="font-size:.82rem;"
+          onclick="if(confirm('Mettre en veille simple ?')) fetch('/api/system/sleep',{method:'POST'}).then(r=>r.json()).then(d=>alert(d.result||d.response))">
+    &#x1F4A4; Veille
+  </button>
+  <button class="hbtn" title="Veille prolongee (Hibernate)" style="font-size:.82rem;"
+          onclick="if(confirm('Veille prolongee (sauvegarde RAM) ?')) fetch('/api/system/hibernate',{method:'POST'}).then(r=>r.json()).then(d=>alert(d.result||d.response))">
+    &#x1F4BE; Hibernate
+  </button>
   <button class="hbtn" onclick="toggleTheme()">&#x1F313;</button>
   <a href="/docs" target="_blank" class="hbtn">&#x1F4D6; API</a>
 </header>
