@@ -117,7 +117,7 @@ def _page_end() -> str:
 </body></html>"""
 
 
-# ── Formulaires par service ────────────────────────────────────────────────────
+# ── Formulaires par service ──────────────────────────────────────────────────
 SERVICE_FORMS = {
     "system_power": {
         "title":       "Controle Alimentation Windows",
@@ -162,28 +162,190 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
     desc     = svc_info.get("description", "")
 
     if form_def:
-        icon  = form_def["icon"]
-        title = form_def["title"]
-        fdesc = form_def["description"]
+        icon   = form_def["icon"]
+        title  = form_def["title"]
+        fdesc  = form_def["description"]
         action = form_def["action"]
         fields_html = ""
         for f in form_def["fields"]:
-            fid  = f["id"]
-            freq = "required" if f.get("required") else ""
+            fid   = f["id"]
+            freq  = "required" if f.get("required") else ""
             rstar = '<span style="color:#f44336;">*</span>' if f.get("required") else ""
-            lbl  = f'<label style="display:block;font-size:.82rem;color:#888;margin-bottom:6px;">{f.get("label",fid)} {rstar}</label>'
+            lbl   = f'<label style="display:block;font-size:.82rem;color:#888;margin-bottom:6px;">{f.get("label",fid)} {rstar}</label>'
             if f.get("type") == "select":
                 opts = "".join(f'<option value="{o}">{o}</option>' for o in f.get("options",[]))
                 js   = f"document.getElementById('svc-form').setAttribute('data-action',this.value);"
                 inp  = f'<select id="{fid}" name="{fid}" {freq} onchange="{js}">{opts}</select>'
             else:
                 xval  = f'value="{f["value"]}"' if f.get("value") not in (None,"") else ""
-                xmin  = f'min="{f["min"]}"' if f.get("min") not in (None,"") else ""
-                xstep = f'step="{f["step"]}"' if f.get("step") not in (None,"") else ""
+                xmin  = f'min="{f["min"]}"'      if f.get("min")   not in (None,"") else ""
+                xstep = f'step="{f["step"]}"'    if f.get("step")  not in (None,"") else ""
                 xph   = f.get("placeholder","") or ""
                 inp   = f'<input type="{f.get("type","text")}" id="{fid}" name="{fid}" placeholder="{xph}" {freq} {xval} {xmin} {xstep}>'
             fields_html += f'<div style="margin-bottom:16px;">{lbl}{inp}</div>'
 
+        # ── Layout deux colonnes pour capacity_calc ──────────────────────────
+        if svc_name == "capacity_calc":
+            return f"""
+        <style>
+          .cap-layout{{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}}
+          @media(max-width:900px){{.cap-layout{{grid-template-columns:1fr;}}}}
+          .cap-result-box{{background:var(--card);border:1px solid var(--border);
+            border-radius:10px;padding:24px;min-height:200px;}}
+          .cap-result-placeholder{{display:flex;align-items:center;justify-content:center;
+            height:100%;min-height:180px;color:var(--dim);font-size:.9rem;text-align:center;}}
+          .res-table{{width:100%;border-collapse:collapse;margin:12px 0;font-size:.88rem;}}
+          .res-table th{{background:rgba(30,144,255,.12);color:#1e90ff;padding:8px 10px;
+            text-align:left;border-bottom:1px solid var(--border);}}
+          .res-table td{{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.05);}}
+          .res-table tr:hover td{{background:rgba(255,255,255,.03);}}
+          .alert-row{{background:rgba(244,67,54,.08);}}
+          .alert-row td{{color:#f44336;}}
+          .badge{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.78rem;
+            font-weight:600;}}
+          .badge-ok{{background:rgba(76,175,80,.15);color:#4caf50;}}
+          .badge-warn{{background:rgba(244,67,54,.15);color:#f44336;}}
+          .stat-row{{display:flex;gap:12px;margin:14px 0;flex-wrap:wrap;}}
+          .stat-card{{background:rgba(30,144,255,.08);border:1px solid rgba(30,144,255,.2);
+            border-radius:8px;padding:10px 16px;flex:1;min-width:110px;text-align:center;}}
+          .stat-val{{font-size:1.3rem;font-weight:700;color:#1e90ff;}}
+          .stat-lbl{{font-size:.72rem;color:var(--dim);margin-top:2px;}}
+          #svc-result{{animation:fadeIn .3s ease;}}
+          @keyframes fadeIn{{from{{opacity:0;transform:translateY(6px)}}to{{opacity:1;transform:none}}}}
+        </style>
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <span style="font-size:2rem;">{icon}</span>
+            <div>
+              <h2 style="font-size:1.2rem;font-weight:700;">{title}</h2>
+              <p style="color:#888;font-size:.85rem;margin-top:2px;">{fdesc}</p>
+            </div>
+          </div>
+          <div class="cap-layout">
+            <!-- Colonne gauche : formulaire -->
+            <div style="background:var(--card);border:1px solid var(--border);
+                 border-radius:10px;padding:24px;">
+              <form id="svc-form" onsubmit="runCapacity(event)"
+                    data-svc="{svc_name}" data-action="{action}">
+                {fields_html}
+                <button type="submit" class="btn-primary" style="margin-top:8px;width:100%;">
+                  ▶ Calculer
+                </button>
+              </form>
+            </div>
+            <!-- Colonne droite : résultat -->
+            <div class="cap-result-box">
+              <div id="svc-result">
+                <div class="cap-result-placeholder">
+                  <div>
+                    <div style="font-size:2rem;margin-bottom:10px;">📊</div>
+                    <div>Le résultat apparaîtra ici<br>après le calcul</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <script>
+        function runCapacity(e) {{
+          e.preventDefault();
+          var form = document.getElementById('svc-form');
+          var data = {{}};
+          new FormData(form).forEach(function(v, k) {{ if(v !== '') data[k] = v; }});
+          ['duration_days','people','hours_per_day'].forEach(function(k) {{
+            if(data[k] !== undefined) data[k] = parseFloat(data[k]);
+          }});
+          var res = document.getElementById('svc-result');
+          res.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;' +
+            'min-height:180px;color:#888;"><span style="margin-right:8px;">⏳</span>Calcul en cours...</div>';
+          var svcName  = form.getAttribute('data-svc');
+          var svcAction= form.getAttribute('data-action');
+          fetch('/services/' + svcName + '/run', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify({{action: svcAction, params: data}})
+          }})
+          .then(function(r) {{ return r.json(); }})
+          .then(function(d) {{
+            if (!d.success) {{
+              res.innerHTML = '<div style="color:#f44336;padding:16px;">' +
+                '<strong>❌ Erreur</strong><br>' + (d.message || 'Erreur inconnue') + '</div>';
+              return;
+            }}
+            // ── Données du résultat ──
+            var taskName  = d.task_name      || 'Tâche';
+            var durDays   = d.duration_days  || 0;
+            var weeks     = d.weeks          || 0;
+            var totalHrs  = d.total_hours    || 0;
+            var people    = d.people         || 1;
+            var splitPct  = d.split_pct      || [];
+            var dailyHrs  = d.daily_hours    || [];
+            var totalPers = d.total_hours_per_person || [];
+            var hpd       = data.hours_per_day || 8;
+
+            // ── Tableau personnes ──
+            var tableRows = '';
+            var hasAlert  = false;
+            for (var i = 0; i < people; i++) {{
+              var pct  = splitPct[i]  !== undefined ? splitPct[i]  : (100/people).toFixed(1);
+              var dh   = dailyHrs[i]  !== undefined ? dailyHrs[i]  : 0;
+              var th   = totalPers[i] !== undefined ? totalPers[i] : 0;
+              var over = parseFloat(dh) > parseFloat(hpd);
+              if (over) hasAlert = true;
+              var rowCls = over ? ' class="alert-row"' : '';
+              var badge  = over
+                ? '<span class="badge badge-warn">⚠ Surcharge</span>'
+                : '<span class="badge badge-ok">✓ OK</span>';
+              tableRows += '<tr' + rowCls + '>' +
+                '<td>Personne ' + (i+1) + '</td>' +
+                '<td>' + parseFloat(pct).toFixed(1) + ' %</td>' +
+                '<td>' + parseFloat(dh).toFixed(2) + ' h</td>' +
+                '<td>' + parseFloat(th).toFixed(1) + ' h</td>' +
+                '<td>' + badge + '</td>' +
+                '</tr>';
+            }}
+
+            // ── Alertes globales ──
+            var alertHtml = '';
+            if (hasAlert) {{
+              alertHtml = '<div style="background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);' +
+                'border-radius:8px;padding:12px 16px;margin-top:14px;font-size:.85rem;">' +
+                '<strong style="color:#f44336;">⚠ Attention — Surcharge détectée</strong>' +
+                '<p style="color:#ccc;margin-top:4px;">Une ou plusieurs personnes dépassent ' +
+                parseFloat(hpd).toFixed(1) + ' h/jour. Envisagez d'allonger la durée ou d'ajouter des ressources.</p>' +
+                '</div>';
+            }}
+
+            res.innerHTML =
+              '<div style="border-left:3px solid #4caf50;padding-left:16px;margin-bottom:16px;">' +
+              '<p style="color:#4caf50;font-weight:700;font-size:1rem;margin-bottom:4px;">✅ Résultat</p>' +
+              '<p style="color:#ccc;font-size:.88rem;">' + taskName + '</p>' +
+              '</div>' +
+
+              '<div class="stat-row">' +
+              '<div class="stat-card"><div class="stat-val">' + durDays + '</div>' +
+                '<div class="stat-lbl">jours ouvrables</div></div>' +
+              '<div class="stat-card"><div class="stat-val">' + parseFloat(weeks).toFixed(1) + '</div>' +
+                '<div class="stat-lbl">semaines</div></div>' +
+              '<div class="stat-card"><div class="stat-val">' + parseFloat(totalHrs).toFixed(1) + '</div>' +
+                '<div class="stat-lbl">heures totales</div></div>' +
+              '<div class="stat-card"><div class="stat-val">' + people + '</div>' +
+                '<div class="stat-lbl">personne(s)</div></div>' +
+              '</div>' +
+
+              '<table class="res-table">' +
+              '<thead><tr><th>Personne</th><th>%</th><th>H/jour</th><th>H/total</th><th>Statut</th></tr></thead>' +
+              '<tbody>' + tableRows + '</tbody>' +
+              '</table>' +
+              alertHtml;
+          }})
+          .catch(function(err) {{
+            res.innerHTML = '<div style="color:#f44336;padding:16px;">❌ Erreur réseau : ' + err + '</div>';
+          }});
+        }}
+        </script>"""
+
+        # ── Layout générique pour les autres services ──────────────────────
         return f"""
         <div style="max-width:680px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
@@ -198,7 +360,7 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
             <form id="svc-form" onsubmit="runService(event)" data-svc="{svc_name}" data-action="{action}">
               {fields_html}
               <button type="submit" class="btn-primary" style="margin-top:8px;">
-                ▶ Calculer
+                ▶ Exécuter
               </button>
             </form>
           </div>
@@ -211,21 +373,21 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
           e.preventDefault();
           var form = document.getElementById('svc-form');
           var data = {{}};
-          new FormData(form).forEach(function(v, k) {{ if(v) data[k] = v; }});
-          // Convertir les nombres
+          new FormData(form).forEach(function(v, k) {{ if(v !== '') data[k] = v; }});
           ['duration_days','people','hours_per_day'].forEach(function(k) {{
-            if(data[k]) data[k] = parseFloat(data[k]);
+            if(data[k] !== undefined) data[k] = parseFloat(data[k]);
           }});
           var res = document.getElementById('svc-result');
           res.style.display = 'block';
-          res.innerHTML = '<p style="color:#888;">⏳ Calcul en cours...</p>';
-          var svcName = form.getAttribute('data-svc');
-          var svcAction = form.getAttribute('data-action');
+          res.innerHTML = '<p style="color:#888;">⏳ Exécution en cours...</p>';
+          var svcName  = form.getAttribute('data-svc');
+          var svcAction= form.getAttribute('data-action');
           fetch('/services/' + svcName + '/run', {{
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
             body: JSON.stringify({{action: svcAction, params: data}})
-          }}).then(r => r.json()).then(d => {{
+          }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+            if (d.success) {{
               var msg = (d.message||'').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                                        .replace(/\n/g, '<br>');
               res.innerHTML = '<div style="border-left:3px solid #4caf50;padding-left:16px;">' +
@@ -234,8 +396,8 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
             }} else {{
               res.innerHTML = '<div style="color:#f44336;">❌ ' + (d.message||'Erreur') + '</div>';
             }}
-          }}).catch(e => {{
-            res.innerHTML = '<div style="color:#f44336;">❌ Erreur: ' + e + '</div>';
+          }}).catch(function(err) {{
+            res.innerHTML = '<div style="color:#f44336;">❌ Erreur: ' + err + '</div>';
           }});
         }}
         </script>"""
@@ -277,7 +439,7 @@ def _build_form(svc_name: str, svc_info: dict) -> str:
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
             body: JSON.stringify({{action: action, params: params}})
-          }}).then(r => r.json()).then(d => {{
+          }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
             var msg = (d.message||JSON.stringify(d,null,2)).replace(/\n/g,'<br>');
             res.innerHTML = '<div style="border-left:3px solid ' +
               (d.success?'#4caf50':'#f44336') + ';padding-left:16px;">' + msg + '</div>';
@@ -376,7 +538,7 @@ def register_services_routes(app, aion_app):
                 _page_end()
             )
 
-        breadcrumb = ('<a href="/services" style="color:#888;text-decoration:none;font-size:.82rem;">'
+        breadcrumb = ('<a href="/services" style="color:#888;text-decoration:none;font-size:.82rem;">' +
                       '⚡ Services</a> <span style="color:#555;"> › </span>')
         content = (breadcrumb + _build_form(svc_name, svc_info))
 
@@ -396,4 +558,11 @@ def register_services_routes(app, aion_app):
             )
             return r.json()
         except Exception as e:
-            return {"success": False, "message": f"AION-Services indisponible: {e}"}
+            # Fallback : appel local direct si AION-Services indisponible
+            try:
+                from aion_core.services.builtins.capacity_calc import CapacityCalcService
+                svc = CapacityCalcService()
+                result = svc.run(action=action, params=params)
+                return result
+            except Exception as e2:
+                return {"success": False, "message": f"AION-Services indisponible: {e} | Fallback: {e2}"}
