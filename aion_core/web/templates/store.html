@@ -255,6 +255,25 @@ function openConfig(appId) {
   });
 }
 
+// togglePwd(btn) — affiche/masque un champ mot de passe
+// L'input est le frère précédent du bouton dans le conteneur flex
+function togglePwd(btn) {
+  var inp = btn.previousElementSibling;
+  while (inp && inp.tagName !== 'INPUT') {
+    inp = inp.previousElementSibling;
+  }
+  if (!inp) return;
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.style.color = 'var(--accent)';
+    btn.title = 'Masquer';
+  } else {
+    inp.type = 'password';
+    btn.style.color = '';
+    btn.title = 'Afficher';
+  }
+}
+
 function closeConfig() {
   document.getElementById('config-modal').classList.remove('open');
   _cfgApp = '';
