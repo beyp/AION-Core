@@ -9,7 +9,46 @@
   border:1px solid rgba({% if has_empty %}244,67,54{% else %}76,175,80{% endif %},.3);
   border-radius:6px;padding:8px 12px;">
   <span style="flex:1;font-size:.82rem;color:{% if has_empty %}var(--red){% else %}var(--green){% endif %};">
-    {% if has_empty %}&#x26A0;&#xFE0F; {{ empty_count }} clé(s) non configurée(s){% else %}&#x2705; Configuration OK{% endif %}
+    {% if has_empty %}&#x26A0;&#xFE0F; {{ empty_count }} clé(s) non configurée(s){% else %}&#x2705; Configuration OK
+<!-- Section import depuis développement local -->
+<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+  <div style="font-size:.78rem;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+    &#x1F4E5; <strong>Importer depuis ton répertoire de développement</strong>
+  </div>
+  <p style="font-size:.73rem;color:#555;margin-bottom:8px;">
+    Récupère ton <code>.env</code> ou <code>config.yaml</code> existant depuis
+    <code>C:\code\python\[Repo]\</code> et l'importe dans appdata/.
+  </p>
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <input id="import-src-path" type="text"
+           placeholder="Ex: C:/code/python/QuickMind/.env"
+           style="flex:1;min-width:220px;font-size:.8rem;padding:6px 10px;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--dim);white-space:nowrap;">
+      <input type="checkbox" id="import-overwrite" style="width:auto;padding:0;"> Écraser si existant
+    </label>
+    <button onclick="doImportEnv('{{ app_id }}')"
+      style="background:rgba(30,144,255,.2);border:1px solid rgba(30,144,255,.4);color:var(--accent);
+      border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.8rem;white-space:nowrap;font-weight:600;">
+      &#x1F4E5; Importer
+    </button>
+  </div>
+  <!-- Suggestions rapides -->
+  <div style="margin-top:6px;font-size:.72rem;color:#555;">
+    Suggestions :
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/.env'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      C:/code/python/{{ app_id | capitalize }}/.env
+    </button>
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/config.yaml'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      config.yaml
+    </button>
+  </div>
+  <div id="import-env-result" style="margin-top:6px;font-size:.8rem;display:none;"></div>
+</div>
+{% endif %}
   </span>
   <button class="btn btn-blue" style="font-size:.78rem;padding:5px 12px;"
           onclick="inheritAll('{{ app_id }}')">
@@ -31,7 +70,46 @@
           title="{{ f.key }}">
       {{ f.key }}
       {% if f.shared %}<span style="font-size:.62rem;background:rgba(30,144,255,.2);color:var(--accent);
-        padding:1px 4px;border-radius:3px;margin-left:3px;">AION</span>{% endif %}
+        padding:1px 4px;border-radius:3px;margin-left:3px;">AION</span>
+<!-- Section import depuis développement local -->
+<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+  <div style="font-size:.78rem;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+    &#x1F4E5; <strong>Importer depuis ton répertoire de développement</strong>
+  </div>
+  <p style="font-size:.73rem;color:#555;margin-bottom:8px;">
+    Récupère ton <code>.env</code> ou <code>config.yaml</code> existant depuis
+    <code>C:\code\python\[Repo]\</code> et l'importe dans appdata/.
+  </p>
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <input id="import-src-path" type="text"
+           placeholder="Ex: C:/code/python/QuickMind/.env"
+           style="flex:1;min-width:220px;font-size:.8rem;padding:6px 10px;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--dim);white-space:nowrap;">
+      <input type="checkbox" id="import-overwrite" style="width:auto;padding:0;"> Écraser si existant
+    </label>
+    <button onclick="doImportEnv('{{ app_id }}')"
+      style="background:rgba(30,144,255,.2);border:1px solid rgba(30,144,255,.4);color:var(--accent);
+      border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.8rem;white-space:nowrap;font-weight:600;">
+      &#x1F4E5; Importer
+    </button>
+  </div>
+  <!-- Suggestions rapides -->
+  <div style="margin-top:6px;font-size:.72rem;color:#555;">
+    Suggestions :
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/.env'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      C:/code/python/{{ app_id | capitalize }}/.env
+    </button>
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/config.yaml'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      config.yaml
+    </button>
+  </div>
+  <div id="import-env-result" style="margin-top:6px;font-size:.8rem;display:none;"></div>
+</div>
+{% endif %}
     </span>
     <input class="field-input" type="{% if f.sensitive %}password{% else %}text{% endif %}"
            value="{{ f.value | e }}"
@@ -43,13 +121,130 @@
     {% if f.sensitive %}
     <button class="btn btn-gray" style="padding:4px 8px;flex-shrink:0;"
             onclick="togglePwd(this)">&#x1F441;</button>
-    {% endif %}
+    
+<!-- Section import depuis développement local -->
+<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+  <div style="font-size:.78rem;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+    &#x1F4E5; <strong>Importer depuis ton répertoire de développement</strong>
+  </div>
+  <p style="font-size:.73rem;color:#555;margin-bottom:8px;">
+    Récupère ton <code>.env</code> ou <code>config.yaml</code> existant depuis
+    <code>C:\code\python\[Repo]\</code> et l'importe dans appdata/.
+  </p>
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <input id="import-src-path" type="text"
+           placeholder="Ex: C:/code/python/QuickMind/.env"
+           style="flex:1;min-width:220px;font-size:.8rem;padding:6px 10px;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--dim);white-space:nowrap;">
+      <input type="checkbox" id="import-overwrite" style="width:auto;padding:0;"> Écraser si existant
+    </label>
+    <button onclick="doImportEnv('{{ app_id }}')"
+      style="background:rgba(30,144,255,.2);border:1px solid rgba(30,144,255,.4);color:var(--accent);
+      border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.8rem;white-space:nowrap;font-weight:600;">
+      &#x1F4E5; Importer
+    </button>
+  </div>
+  <!-- Suggestions rapides -->
+  <div style="margin-top:6px;font-size:.72rem;color:#555;">
+    Suggestions :
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/.env'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      C:/code/python/{{ app_id | capitalize }}/.env
+    </button>
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/config.yaml'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      config.yaml
+    </button>
+  </div>
+  <div id="import-env-result" style="margin-top:6px;font-size:.8rem;display:none;"></div>
+</div>
+{% endif %}
     {% if f.shared %}
     <button class="btn btn-ghost-blue" style="font-size:.72rem;padding:4px 8px;flex-shrink:0;white-space:nowrap;"
             onclick="inheritOne('{{ app_id }}','{{ fname }}','{{ f.key }}')">&#x21A9; AION</button>
-    {% endif %}
+    
+<!-- Section import depuis développement local -->
+<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+  <div style="font-size:.78rem;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+    &#x1F4E5; <strong>Importer depuis ton répertoire de développement</strong>
+  </div>
+  <p style="font-size:.73rem;color:#555;margin-bottom:8px;">
+    Récupère ton <code>.env</code> ou <code>config.yaml</code> existant depuis
+    <code>C:\code\python\[Repo]\</code> et l'importe dans appdata/.
+  </p>
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <input id="import-src-path" type="text"
+           placeholder="Ex: C:/code/python/QuickMind/.env"
+           style="flex:1;min-width:220px;font-size:.8rem;padding:6px 10px;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--dim);white-space:nowrap;">
+      <input type="checkbox" id="import-overwrite" style="width:auto;padding:0;"> Écraser si existant
+    </label>
+    <button onclick="doImportEnv('{{ app_id }}')"
+      style="background:rgba(30,144,255,.2);border:1px solid rgba(30,144,255,.4);color:var(--accent);
+      border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.8rem;white-space:nowrap;font-weight:600;">
+      &#x1F4E5; Importer
+    </button>
+  </div>
+  <!-- Suggestions rapides -->
+  <div style="margin-top:6px;font-size:.72rem;color:#555;">
+    Suggestions :
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/.env'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      C:/code/python/{{ app_id | capitalize }}/.env
+    </button>
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/config.yaml'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      config.yaml
+    </button>
+  </div>
+  <div id="import-env-result" style="margin-top:6px;font-size:.8rem;display:none;"></div>
+</div>
+{% endif %}
   </div>
   {% endfor %}
 </div>
 {% endfor %}
+
+<!-- Section import depuis développement local -->
+<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+  <div style="font-size:.78rem;color:var(--dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+    &#x1F4E5; <strong>Importer depuis ton répertoire de développement</strong>
+  </div>
+  <p style="font-size:.73rem;color:#555;margin-bottom:8px;">
+    Récupère ton <code>.env</code> ou <code>config.yaml</code> existant depuis
+    <code>C:\code\python\[Repo]\</code> et l'importe dans appdata/.
+  </p>
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <input id="import-src-path" type="text"
+           placeholder="Ex: C:/code/python/QuickMind/.env"
+           style="flex:1;min-width:220px;font-size:.8rem;padding:6px 10px;">
+    <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;color:var(--dim);white-space:nowrap;">
+      <input type="checkbox" id="import-overwrite" style="width:auto;padding:0;"> Écraser si existant
+    </label>
+    <button onclick="doImportEnv('{{ app_id }}')"
+      style="background:rgba(30,144,255,.2);border:1px solid rgba(30,144,255,.4);color:var(--accent);
+      border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.8rem;white-space:nowrap;font-weight:600;">
+      &#x1F4E5; Importer
+    </button>
+  </div>
+  <!-- Suggestions rapides -->
+  <div style="margin-top:6px;font-size:.72rem;color:#555;">
+    Suggestions :
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/.env'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      C:/code/python/{{ app_id | capitalize }}/.env
+    </button>
+    <button onclick="document.getElementById('import-src-path').value='C:/code/python/{{ app_id | capitalize }}/config.yaml'"
+      style="background:transparent;border:1px solid #2a2d3e;color:#888;padding:1px 7px;
+      border-radius:4px;cursor:pointer;font-size:.72rem;margin:0 2px;">
+      config.yaml
+    </button>
+  </div>
+  <div id="import-env-result" style="margin-top:6px;font-size:.8rem;display:none;"></div>
+</div>
 {% endif %}
