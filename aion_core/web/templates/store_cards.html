@@ -1,6 +1,7 @@
 {% if apps %}
 {% for app in apps %}
 <div class="card" data-app-id="{{ app.app_id }}">
+
   <!-- Header -->
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
     <div style="flex:1;">
@@ -11,25 +12,25 @@
       {% endif %}
     </div>
     {% if app.is_cloned %}
-    <span style="color:var(--green);font-weight:600;">&#x2705; Installé</span>
+    <span style="color:var(--green);font-weight:600;font-size:.85rem;">&#x2705; Installé</span>
     {% else %}
-    <span style="color:var(--red);font-weight:600;">&#x274C; Non cloné</span>
+    <span style="color:var(--red);font-weight:600;font-size:.85rem;">&#x274C; Non cloné</span>
     {% endif %}
   </div>
 
   <!-- Infos -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:.8rem;color:var(--dim);margin-bottom:10px;">
-    <div>Mis à jour : <span style="color:var(--text);">{{ app.last_update or "—" }}</span></div>
-    <div>Backups : <span style="color:var(--text);">{{ app.backups|length }}</span></div>
+  <div style="display:flex;gap:16px;font-size:.78rem;color:var(--dim);margin-bottom:10px;">
+    <span>Mis à jour : <strong style="color:var(--text);">{{ app.last_update or "—" }}</strong></span>
+    <span>Backups : <strong style="color:var(--text);">{{ app.backups|length }}</strong></span>
   </div>
 
-  <!-- AppData -->
+  <!-- Fichiers persistants -->
   {% if app.appdata_files %}
   <div style="background:#0f1117;border-radius:6px;padding:8px 10px;margin-bottom:10px;">
-    <div style="font-size:.73rem;color:var(--dim);margin-bottom:4px;">
-      Fichiers persistants
+    <div style="font-size:.72rem;color:var(--dim);margin-bottom:4px;">
+      &#x1F4BE; Données sauvegardées
       {% if app.auto_detected %}
-      <span style="background:rgba(30,144,255,.2);color:var(--accent);padding:1px 5px;border-radius:4px;font-size:.65rem;">auto</span>
+      <span style="background:rgba(30,144,255,.2);color:var(--accent);padding:1px 5px;border-radius:4px;font-size:.65rem;margin-left:4px;">auto</span>
       {% endif %}
     </div>
     {% for f in app.appdata_files %}
@@ -37,37 +38,43 @@
     {% endfor %}
   </div>
   {% else %}
-  <div style="font-size:.8rem;color:var(--dim);margin-bottom:10px;">
-    <span style="color:var(--orange);">&#x26A0;</span> Aucun fichier persistant —
-    <button class="btn btn-ghost-blue" onclick="appAction('scan','{{ app.app_id }}')"
-            style="font-size:.75rem;padding:2px 8px;margin-left:4px;">&#x1F50D; Scanner</button>
+  <div style="font-size:.8rem;color:var(--dim);margin-bottom:10px;padding:6px 10px;
+       background:rgba(255,152,0,.07);border-radius:6px;border-left:2px solid var(--orange);">
+    <span style="color:var(--orange);">&#x26A0;</span>
+    Aucune donnée persistante déclarée —
+    <button onclick="appAction('scan','{{ app.app_id }}')"
+      style="background:transparent;border:none;color:var(--accent);cursor:pointer;
+      font-size:.8rem;text-decoration:underline;padding:0;">Détecter maintenant</button>
   </div>
   {% endif %}
 
-  <!-- Boutons -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+  <!-- Boutons principaux -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
     <button id="btn-start-{{ app.app_id }}" class="btn btn-green"
             onclick="appAction('start','{{ app.app_id }}')">&#x25B6; Start</button>
     <button id="btn-stop-{{ app.app_id }}" class="btn btn-red"
             onclick="appAction('stop','{{ app.app_id }}')">&#x25A0; Stop</button>
     <button class="btn btn-orange"
             onclick="openConfig('{{ app.app_id }}')">&#x2699;&#xFE0F; Config</button>
-    <button class="btn btn-purple"
-            onclick="appAction('scan','{{ app.app_id }}')">&#x1F50D; Scan AppData</button>
     <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
-    <button class="btn btn-ghost-blue"
+    <button class="btn" style="background:rgba(30,144,255,.15);border:1px solid rgba(30,144,255,.4);color:var(--accent);"
             onclick="appAction('update','{{ app.app_id }}')">&#x1F504; Update</button>
-    <button class="btn btn-orange"
-            onclick="appAction('restore','{{ app.app_id }}')">&#x1F4BE; Restaurer</button>
+    <button class="btn" style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);color:var(--green);"
+            title="Sauvegarder données du repo vers appdata/"
+            onclick="appAction('scan','{{ app.app_id }}')">&#x1F4E4; Sauvegarder data</button>
+    <button class="btn" style="background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);color:var(--orange);"
+            title="Restaurer données depuis appdata/ vers le repo"
+            onclick="appAction('restore','{{ app.app_id }}')">&#x1F4E5; Restaurer data</button>
     <button class="btn btn-ghost-red"
             onclick="appAction('uninstall','{{ app.app_id }}')">&#x1F5D1; Supprimer</button>
   </div>
+
   <div id="sr-{{ app.app_id }}" class="result-msg"></div>
 </div>
 {% endfor %}
 {% else %}
 <div class="card" style="text-align:center;color:var(--dim);">
   <p>Aucune app installée via AppStore.</p>
-  <p style="font-size:.78rem;margin-top:6px;">Utilise le formulaire ci-dessus pour installer ta première app.</p>
+  <p style="font-size:.78rem;margin-top:6px;">Utilise le formulaire ci-dessus pour commencer.</p>
 </div>
 {% endif %}
