@@ -244,6 +244,107 @@ def register_store_routes(app, aion_app):
     async def store_list_appdata(app_id: str):
         return {"app_id": app_id, "files": _get_store().list_appdata(app_id)}
 
+
+    @app.post("/api/store/{app_id}/import-env")
+    async def store_import_env(app_id: str, request: Request):
+        """
+        Importe un .env ou config.yaml depuis un chemin local vers appdata/.
+        Utile pour récupérer le .env de ton répertoire de dev local
+        (C:\code\python\[Repo]\.env) après un git clone dans AION_APPS.
+
+        Body: {
+            "source_path": "C:/code/python/QuickMind/.env",
+            "overwrite": true   (default: false — ne remplace que les clés manquantes)
+        }
+        """
+        from pathlib import Path as _P
+        from aion_core.store.config_editor import ConfigEditor
+        import json as _j, shutil as _sh
+
+        body = await request.json()
+        source_path = body.get("source_path", "")
+        overwrite   = body.get("overwrite", False)
+
+        if not source_path:
+            return {"success": False, "message": "source_path requis"}
+
+        src = _P(source_path)
+        if not src.exists():
+            return {"success": False,
+                    "message": f"Fichier introuvable: {source_path}"}
+
+        # Récupérer appdata_path depuis le registre
+        appdata_path = install_path = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    s = d.get("apps",{}).get(app_id,{}).get("store",{})
+                    install_path = s.get("install_path","")
+                    appdata_path = s.get("appdata_path","")
+                    if appdata_path: break
+                except Exception: pass
+
+        if not appdata_path:
+            return {"success": False,
+                    "message": f"App '{app_id}' non trouvée ou sans appdata configuré"}
+
+        # Copier vers appdata/
+        dest_dir = _P(appdata_path)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / src.name
+
+        if dest.exists() and not overwrite:
+            # Mode non-écrasant : fusionner les clés manquantes
+            try:
+                existing_keys = set()
+                for line in dest.read_text(encoding="utf-8").splitlines():
+                    if "=" in line and not line.startswith("#"):
+                        existing_keys.add(line.split("=")[0].strip())
+
+                new_lines = []
+                added = []
+                for line in src.read_text(encoding="utf-8").splitlines():
+                    if "=" in line and not line.startswith("#"):
+                        key = line.split("=")[0].strip()
+                        if key not in existing_keys:
+                            new_lines.append(line)
+                            added.append(key)
+
+                if new_lines:
+                    with open(dest, "a", encoding="utf-8") as f:
+                        f.write("\n# Imported from " + str(src) + "\n")
+                        f.write("\n".join(new_lines) + "\n")
+                    # Synchroniser dans install_path aussi
+                    if install_path:
+                        _sh.copy2(str(dest), str(_P(install_path) / src.name))
+                    return {
+                        "success": True,
+                        "message": f"{len(added)} clé(s) ajoutée(s) depuis {src.name} : {', '.join(added[:5])}",
+                        "added": added,
+                        "dest": str(dest),
+                    }
+                else:
+                    return {"success": True,
+                            "message": "Aucune nouvelle clé à ajouter (toutes déjà présentes).",
+                            "added": []}
+            except Exception as e:
+                return {"success": False, "message": f"Erreur fusion: {e}"}
+        else:
+            # Copie directe (overwrite=True ou fichier absent)
+            try:
+                _sh.copy2(str(src), str(dest))
+                # Synchroniser dans install_path aussi
+                if install_path:
+                    _sh.copy2(str(src), str(_P(install_path) / src.name))
+                return {
+                    "success": True,
+                    "message": f"{src.name} importé dans appdata/{app_id}/ et dans le repo.",
+                    "dest": str(dest),
+                }
+            except Exception as e:
+                return {"success": False, "message": f"Erreur copie: {e}"}
+
     @app.get("/api/store/{app_id}/config-html", response_class=HTMLResponse)
     async def store_get_config_html(app_id: str, request: Request):
         """HTML de la modale config via Jinja2 — pas de generation JS."""
