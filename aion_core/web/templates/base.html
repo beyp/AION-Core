@@ -30,7 +30,16 @@ header .spacer{flex:1;}
 .hbtn:hover{background:var(--accent);color:white;}
 .layout{display:flex;flex:1;overflow:hidden;}
 .sidebar{width:220px;background:var(--sidebar);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;padding:10px 0;}
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;padding:10px 0;
+  transition:width .2s ease;}
+.sidebar.collapsed{width:52px;overflow:hidden;}
+.sidebar.collapsed .nav-label,.sidebar.collapsed .sb-section,.sidebar.collapsed .sb-sec{display:none;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px 0;}
+.sidebar.collapsed .nav-icon{width:auto;font-size:1.1rem;}
+.sidebar.collapsed #sidebar-apps{overflow:hidden;}
+.collapse-btn{background:transparent;border:none;color:var(--dim);cursor:pointer;
+  padding:8px 14px;font-size:.9rem;text-align:left;width:100%;display:flex;align-items:center;gap:8px;}
+.collapse-btn:hover{color:var(--accent);}
 .sb-section{padding:4px 12px;font-size:0.68rem;text-transform:uppercase;
   letter-spacing:1px;color:var(--dim);margin-top:8px;}
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;
@@ -123,7 +132,11 @@ header .spacer{flex:1;}
 
 <div class="layout">
 
-  <nav class="sidebar">
+  <nav class="sidebar" id="main-sidebar">
+    <button class="collapse-btn" onclick="toggleSidebar()" title="Réduire/Agrandir le menu">
+      <span id="collapse-icon">&#x276E;</span>
+      <span class="nav-label" id="collapse-label" style="font-size:.78rem;color:var(--dim);">Réduire</span>
+    </button>
     <div class="sb-section">Navigation</div>
     <a href="/" class="nav-item {% if active=='dashboard' %}active{% endif %}">
       <span class="nav-icon">&#x1F4CA;</span>
@@ -187,6 +200,27 @@ function toggleTheme() {
 }
 var t = localStorage.getItem("theme");
 if (t) document.documentElement.setAttribute("data-theme", t);
+
+function toggleSidebar() {
+  var sb   = document.getElementById("main-sidebar");
+  var icon = document.getElementById("collapse-icon");
+  var lbl  = document.getElementById("collapse-label");
+  var collapsed = sb.classList.toggle("collapsed");
+  localStorage.setItem("sidebarCollapsed", collapsed ? "1" : "0");
+  if (icon) icon.textContent = collapsed ? "\u276F" : "\u276E";
+  if (lbl)  lbl.textContent  = collapsed ? "" : "R\u00e9duire";
+}
+// Restaurer l'état sidebar
+(function() {
+  if (localStorage.getItem("sidebarCollapsed") === "1") {
+    var sb = document.getElementById("main-sidebar");
+    if (sb) {
+      sb.classList.add("collapsed");
+      var icon = document.getElementById("collapse-icon");
+      if (icon) icon.textContent = "\u276F";
+    }
+  }
+})();
 
 // ── Updater AION-Core ─────────────────────────────────────────────
 function checkAionUpdate() {
