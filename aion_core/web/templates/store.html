@@ -299,6 +299,31 @@ function saveConfig() {
   .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
 }
 
+function doImportEnv(appId) {
+  var src      = document.getElementById('import-src-path').value.trim();
+  var overwrite= document.getElementById('import-overwrite').checked;
+  var res      = document.getElementById('import-env-result');
+  if (!src) { alert('Saisis le chemin du fichier source'); return; }
+  res.style.display = 'block';
+  res.style.color   = 'var(--orange)';
+  res.textContent   = '⏳ Import en cours...';
+  fetch('/api/store/' + appId + '/import-env', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({source_path: src, overwrite: overwrite})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    res.style.color = d.success ? 'var(--green)' : 'var(--red)';
+    res.textContent = d.message;
+    if (d.success) {
+      // Recharger la modale pour voir les nouvelles valeurs
+      setTimeout(function() { openConfig(appId); }, 1200);
+    }
+  })
+  .catch(function(e) { res.style.color='var(--red)'; res.textContent='Erreur: '+e; });
+}
+
 function inheritAll(appId) {
   var msg = document.getElementById('config-msg');
   showMsg(msg, 'orange', '&#x23F3; Héritage depuis AION...');
