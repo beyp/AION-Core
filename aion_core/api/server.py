@@ -33,6 +33,12 @@ def create_app(aion_app) -> FastAPI:
     app.add_middleware(CORSMiddleware,
         allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+    # Servir les fichiers statiques (favicon, icones...)
+    static_dir = Path(__file__).parent.parent / "web" / "static"
+    if static_dir.exists():
+        from fastapi.staticfiles import StaticFiles
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR)) if TEMPLATES_DIR.exists() else None
 
     # ── Status ────────────────────────────────────────────────────
