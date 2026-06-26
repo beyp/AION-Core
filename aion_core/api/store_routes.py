@@ -567,14 +567,57 @@ def register_store_routes(app, aion_app):
         env.update(autostart.get("env", {}))
 
         pm = ProcessManager()
-        # Commande explicite si configuree et valide
-        cmd = autostart.get("command", [])
-        explicit_cmd = cmd if (cmd and _P(cmd[0]).exists()) else None
+
+        # Déterminer la commande de lancement
+        cmd          = autostart.get("command", [])
+        install_root = _P(install_path)
+        explicit_cmd = None
+
+        if cmd:
+            exe = _P(cmd[0])
+            if exe.exists():
+                explicit_cmd = cmd
+                logger.info("Start %s: commande configuree %s", app_id, cmd)
+            else:
+                # Exe du venv manquant → chercher le venv ou utiliser detect_launch_type
+                logger.warning("Start %s: exe manquant %s, auto-detection", app_id, cmd[0])
+                # Essayer de trouver run_api.py ou main.py avec le venv local
+                for venv_py in [
+                    install_root / ".venv" / "Scripts" / "python.exe",
+                    install_root / "venv"  / "Scripts" / "python.exe",
+                ]:
+                    if venv_py.exists():
+                        for script in ["run_api.py", "main.py", "app.py"]:
+                            if (install_root / script).exists():
+                                explicit_cmd = [str(venv_py), script]
+                                logger.info("Start %s: venv trouve %s", app_id, explicit_cmd)
+                                break
+                    if explicit_cmd:
+                        break
+
+        if not explicit_cmd and not cmd:
+            # Pas de commande du tout → auto-detection
+            from aion_core.store.process_manager import _detect_launch_command
+            detected = _detect_launch_command(install_path)
+            if detected:
+                explicit_cmd = detected
+                logger.info("Start %s: auto-detect %s", app_id, detected)
+
+        if not explicit_cmd:
+            return {
+                "success": False,
+                "message": (
+                    f"Impossible de trouver comment lancer {app_id}.\n"
+                    f"Repo: {install_path}\n"
+                    f"Venv attendu: {install_root / '.venv' / 'Scripts' / 'python.exe'}\n"
+                    f"Conseil: reinstalle l'app via /store pour recréer le venv."
+                )
+            }
 
         result = pm.start(
             app_id       = app_id,
             install_path = install_path,
-            app_type     = autostart.get("mode", "auto"),
+            app_type     = autostart.get("mode", "fastapi"),
             command      = explicit_cmd,
             port         = port,
             env          = env,
