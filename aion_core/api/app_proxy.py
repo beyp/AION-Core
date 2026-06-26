@@ -197,6 +197,20 @@ def register_proxy_routes(app, aion_app):
         version  = aion_app.VERSION
         ai_ok    = aion_app.brain.is_available()
 
+        # Adapter l'URL de l'app selon l'hôte depuis lequel AION est accédé.
+        # Si tu accèdes à AION via Tailscale (100.102.139.40:8000),
+        # le lien vers QuickMind doit utiliser 100.102.139.40:8765 (pas localhost).
+        # On remplace "localhost" par l'hôte du client, en gardant le port de l'app.
+        if app_url and "localhost" in app_url:
+            req_host = request.headers.get("host", "")
+            # Extraire juste le hostname sans port (ex: "100.102.139.40" depuis "100.102.139.40:8000")
+            client_host = req_host.split(":")[0] if req_host else "localhost"
+            if client_host and client_host != "localhost" and client_host != "127.0.0.1":
+                # Garder le port de l'app (ex: 8765) mais changer le host
+                from urllib.parse import urlparse as _up
+                parsed   = _up(app_url)
+                app_url  = app_url.replace(parsed.hostname, client_host)
+
         # ── FastAPI / API externe avec URL → iframe plein écran ──────────
         if app_url and app_type in ("fastapi", "api_external"):
             # Health check rapide
