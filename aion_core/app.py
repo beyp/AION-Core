@@ -152,4 +152,8 @@ class AionApp:
         # Demarrer le watcher de mise a jour AION-Core
         self.updater.start()
 
+        # Lancer le systray en arriere-plan (Windows uniquement)
+        from aion_core.tray import run_tray_background
+        run_tray_background(aion_app=self, port=port)
+
         uvicorn.run(app, host=host, port=port, log_level="info")
