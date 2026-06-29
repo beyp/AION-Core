@@ -46,6 +46,172 @@ def register_store_routes(app, aion_app):
     async def store_status():
         return {"apps": _get_store().status()}
 
+
+    # ── Backup routes ─────────────────────────────────────────────
+
+    @app.post("/api/store/backup/{app_id}")
+    async def store_backup(app_id: str, request: Request):
+        """Backup manuel. Body: {"force": false}"""
+        from pathlib import Path as _P
+        from aion_core.store.backup_manager import BackupManager
+        import json as _j
+        body  = {}
+        try: body = await request.json()
+        except Exception: pass
+        force = body.get("force", False)
+        install_path, extra_files = "", []
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    s = d.get("apps", {}).get(app_id, {}).get("store", {})
+                    install_path = s.get("install_path", "")
+                    extra_files  = s.get("appdata_files", [])
+                    if install_path: break
+                except Exception: pass
+        if not install_path:
+            return {"success": False, "message": f"App '{app_id}' introuvable"}
+        bm  = BackupManager()
+        res = bm.backup_app(app_id, install_path, extra_files=extra_files, force=force)
+        if not res.get("confirmed") and res.get("already_existed"):
+            return {
+                "success": False, "already_existed": True,
+                "message": res["message"], "backup_path": res.get("backup_path", ""),
+            }
+        return res
+
+    @app.get("/api/store/backups/{app_id}")
+    async def store_list_backups(app_id: str):
+        """Liste les backups disponibles pour une app."""
+        from aion_core.store.backup_manager import BackupManager
+        return {"app_id": app_id, "backups": BackupManager().list_backups(app_id)}
+
+    @app.post("/api/store/restore-backup/{app_id}")
+    async def store_restore_backup(app_id: str, request: Request):
+        """Restaure un backup specifique. Body: {"backup_path": "..."}"""
+        from pathlib import Path as _P
+        from aion_core.store.backup_manager import BackupManager
+        import json as _j
+        body         = await request.json()
+        backup_path  = body.get("backup_path", "")
+        install_path = ""
+        for rf in [_P("apps.local.json"), _P("apps.json")]:
+            if rf.exists():
+                try:
+                    d = _j.loads(rf.read_text(encoding="utf-8"))
+                    install_path = d.get("apps", {}).get(app_id, {}).get("store", {}).get("install_path", "")
+                    if install_path: break
+                except Exception: pass
+        if not backup_path or not install_path:
+            return {"success": False, "message": "backup_path et install_path requis"}
+        return BackupManager().restore_backup(backup_path, install_path)
+
+    # ── Detection auto pour installation ──────────────────────────
+
+    @app.post("/api/store/detect")
+    async def store_detect(request: Request):
+        """
+        Detecte les possibilites de lancement d'un repo existant.
+        Body: {"install_path": "C:/code/python/QuickMind"}
+        Retourne: options detectees avec recommandation + start_bat existant.
+        """
+        from pathlib import Path as _P
+        from aion_core.store.process_manager import ProcessManager
+        body         = await request.json()
+        install_path = body.get("install_path", "")
+        if not install_path or not _P(install_path).exists():
+            return {"success": False, "message": f"Dossier introuvable: {install_path}"}
+
+        root     = _P(install_path)
+        app_name = root.name
+
+        # 1. Detection du type principal
+        detected = ProcessManager.detect_launch_type(install_path)
+
+        # 2. Scanner TOUTES les possibilites disponibles
+        options = []
+
+        # Docker ?
+        for dc in ["docker-compose.yml", "docker-compose.yaml", "compose.yml"]:
+            if (root / dc).exists():
+                options.append({
+                    "type": "docker", "label": "Docker Compose",
+                    "icon": "\U0001f433", "file": dc,
+                    "command": ["docker", "compose", "-f", dc, "up", "-d", "--build"],
+                    "recommended": detected["type"] == "docker",
+                })
+                break
+
+        # Dockerfile seul ?
+        if (root / "Dockerfile").exists() and not any(o["type"] == "docker" for o in options):
+            options.append({
+                "type": "docker_build", "label": "Docker (build manuel)",
+                "icon": "\U0001f433", "file": "Dockerfile",
+                "command": ["docker", "build", "-t", app_name.lower(), "."],
+                "recommended": False,
+            })
+
+        # Scripts Python
+        venv_py = root / ".venv" / "Scripts" / "python.exe"
+        python  = str(venv_py) if venv_py.exists() else "python"
+        for script in ["run_api.py", "run.py", "main.py", "app.py", "server.py"]:
+            if (root / script).exists():
+                # Detecter si FastAPI/uvicorn
+                is_fastapi = False
+                try:
+                    content = (root / script).read_text(encoding="utf-8", errors="replace")
+                    is_fastapi = "fastapi" in content.lower() or "uvicorn" in content
+                except Exception:
+                    pass
+                label = ("FastAPI/Uvicorn" if is_fastapi else "Python script")
+                stype = ("uvicorn" if is_fastapi else "python")
+                options.append({
+                    "type": stype, "label": label + " (" + script + ")",
+                    "icon": ("\u26a1" if is_fastapi else "\U0001f40d"),
+                    "file": script,
+                    "command": [python, script],
+                    "recommended": detected["type"] in ("uvicorn", "fastapi", "python") and detected.get("info", "").startswith("Script"),
+                })
+
+        # start[App].bat existant ?
+        bat_name    = "start" + app_name + ".bat"
+        bat_path    = root / bat_name
+        bat_exists  = bat_path.exists()
+        bat_content = ""
+        if bat_exists:
+            try:
+                bat_content = bat_path.read_text(encoding="utf-8", errors="replace")[:500]
+            except Exception:
+                pass
+
+        # Config files detectes
+        config_files = []
+        for cf in [".env", "config.yaml", "config.yml", ".env.example", "config.example.yaml"]:
+            if (root / cf).exists():
+                config_files.append(cf)
+
+        # Requirements
+        req_files = [f.name for f in root.glob("requirements*.txt")]
+
+        # Venv present ?
+        venv_exists = venv_py.exists()
+
+        return {
+            "success":      True,
+            "app_name":     app_name,
+            "install_path": install_path,
+            "detected":     detected,
+            "options":      options,
+            "bat_exists":   bat_exists,
+            "bat_name":     bat_name,
+            "bat_path":     str(bat_path) if bat_exists else "",
+            "bat_preview":  bat_content,
+            "config_files": config_files,
+            "req_files":    req_files,
+            "venv_exists":  venv_exists,
+            "venv_path":    str(venv_py) if venv_exists else "",
+        }
+
     @app.get("/api/store/cards", response_class=HTMLResponse)
     async def store_cards(request: Request):
         """Fragment htmx : liste les cards des apps installées via AppStore."""
