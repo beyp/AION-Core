@@ -485,3 +485,62 @@ class ProcessManager:
         except Exception as e:
             logger.warning("_kill_port %d: %s", port, e)
         return False
+
+
+    @staticmethod
+    def generate_start_bat(app_id: str, install_path: str,
+                           command: list | None = None) -> str | None:
+        """
+        Genere start[App].bat dans install_path si absent.
+        Ex: C:/code/python/QuickMind/startQuickMind.bat
+        Retourne le chemin cree, ou None si deja existant ou erreur.
+        """
+        root     = Path(install_path)
+        app_name = root.name  # ex: QuickMind
+        bat_name = "start" + app_name + ".bat"
+        bat_path = root / bat_name
+
+        if bat_path.exists():
+            return None  # deja existant
+
+        # Detecter la commande si non fournie
+        if not command:
+            detected = ProcessManager.detect_launch_type(install_path)
+            if detected["type"] == "unknown":
+                return None
+            command = detected["command"]
+
+        venv_py = str(root / ".venv" / "Scripts" / "python.exe")
+        venv_ac = str(root / ".venv" / "Scripts" / "activate.bat")
+        script  = command[-1] if len(command) > 1 else "main.py"
+        exe     = command[0] if command else "python"
+
+        lines = [
+            "@echo off",
+            "title " + app_name + " - AION App",
+            "echo.",
+            "echo  === " + app_name + " ===",
+            "echo.",
+            'cd /d "' + str(root) + '"',
+            "",
+            ":: Activer le venv si present",
+            'if exist "' + venv_ac + '" (',
+            '    call "' + venv_ac + '"',
+            ") else (",
+            "    echo [WARN] Venv absent - Python systeme",
+            ")",
+            "",
+            ":: Lancer l'app",
+            "echo  Demarrage " + app_name + "...",
+            '"' + exe + '" ' + script,
+            "",
+            "pause",
+        ]
+        try:
+            bat_path.write_text("\r\n".join(lines), encoding="utf-8")
+            logger.info("Bat genere: %s", bat_path)
+            return str(bat_path)
+        except Exception as e:
+            logger.warning("generate_start_bat %s: %s", app_name, e)
+            return None
+
