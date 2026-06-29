@@ -60,11 +60,11 @@
     <button class="btn" style="background:rgba(30,144,255,.15);border:1px solid rgba(30,144,255,.4);color:var(--accent);"
             onclick="appAction('update','{{ app.app_id }}')">&#x1F504; Update</button>
     <button class="btn" style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);color:var(--green);"
-            title="Sauvegarder données du repo vers appdata/"
-            onclick="appAction('scan','{{ app.app_id }}')">&#x1F4E4; Sauvegarder data</button>
+            title="Backup immédiat vers C:/AION_APPS/backups/"
+            onclick="doBackup('{{ app.app_id }}')">&#x1F4BE; Backup</button>
     <button class="btn" style="background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);color:var(--orange);"
             title="Restaurer données depuis appdata/ vers le repo"
-            onclick="appAction('restore','{{ app.app_id }}')">&#x1F4E5; Restaurer data</button>
+            onclick="appAction('restore','{{ app.app_id }}')">&#x1F4E5; Restaurer</button>
     <button class="btn btn-ghost-red"
             onclick="appAction('uninstall','{{ app.app_id }}')">&#x1F5D1; Supprimer</button>
   </div>
