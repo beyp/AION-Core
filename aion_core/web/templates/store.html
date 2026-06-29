@@ -88,37 +88,51 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 
     <!-- Formulaire installation -->
     <div class="card" style="margin-bottom:20px;">
-      <div style="font-weight:600;color:var(--accent);margin-bottom:12px;">&#x2795; Installer une nouvelle app</div>
-      <div style="display:grid;grid-template-columns:1fr 110px 150px auto;gap:8px;align-items:end;">
+      <div style="font-weight:600;color:var(--accent);margin-bottom:12px;">&#x2795; Ajouter une app</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
         <div>
-          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">Repo GitHub</label>
+          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">
+            Repo GitHub <span style="color:#555;">(optionnel si app deja clonee)</span>
+          </label>
           <input id="inst-repo" type="text" placeholder="owner/repo  (ex: beyp/QuickMind)"
-                 onkeydown="if(event.key==='Enter') doInstall()">
+                 onkeydown="if(event.key==='Enter') doDetect()">
         </div>
         <div>
-          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">Port</label>
-          <input id="inst-port" type="number" placeholder="8765">
-        </div>
-        <div>
-          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">Type</label>
-          <select id="inst-type">
-            <option value="auto">&#x1F50D; Auto-detect</option>
-            <option value="docker">&#x1F433; Docker</option>
-            <option value="uvicorn">&#x26A1; Uvicorn/FastAPI</option>
-            <option value="python">&#x1F40D; Python</option>
-          </select>
+          <label style="font-size:.75rem;color:var(--dim);display:block;margin-bottom:4px;">
+            Chemin local <span style="color:var(--accent);">C:/code/python/[App]</span>
+          </label>
+          <input id="inst-path" type="text" placeholder="C:/code/python/QuickMind"
+                 onkeydown="if(event.key==='Enter') doDetect()"
+                 oninput="autoFillRepo(this.value)">
         </div>
         <div>
           <label style="font-size:.75rem;display:block;margin-bottom:4px;">&nbsp;</label>
-          <button class="btn btn-blue" onclick="doInstall()" style="padding:9px 16px;white-space:nowrap;">
-            &#x1F4E5; Installer
+          <button class="btn btn-blue" onclick="doDetect()" style="padding:9px 16px;white-space:nowrap;">
+            &#x1F50D; Détecter
           </button>
         </div>
       </div>
       <p style="font-size:.73rem;color:#555;margin-top:6px;">
-        &#x1F4A1; Auto-detect : docker-compose.yml en priorité, puis run_api.py, main.py.
+        &#x1F4A1; AION scanne le dossier, détecte les options de lancement disponibles et te propose un choix.
       </p>
       <div id="inst-result" class="result-msg"></div>
+    </div>
+
+    <!-- Modal de detection -->
+    <div id="detect-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+         z-index:3000;align-items:center;justify-content:center;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;
+           width:640px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;">
+          <span style="font-weight:600;font-size:1rem;flex:1;">&#x1F50D; Détection — <span id="dm-title"></span></span>
+          <button onclick="closeDetect()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+        </div>
+        <div id="dm-body" style="padding:16px 20px;overflow-y:auto;flex:1;"></div>
+        <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
+          <button onclick="closeDetect()" class="btn btn-gray" style="padding:8px 16px;">Annuler</button>
+          <button onclick="confirmInstall()" class="btn btn-blue" style="padding:8px 20px;">&#x2705; Confirmer et installer</button>
+        </div>
+      </div>
     </div>
 
     <!-- Apps installées via htmx -->
