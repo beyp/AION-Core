@@ -29,6 +29,7 @@ class AionApp:
         self.app_router = None
         self.discovery  = None
         self.launcher   = None   # AppLauncher — autostart des apps
+        self.backup_mgr = None   # BackupManager — backup quotidien
         self.updater    = None   # AionUpdater — veille mise a jour AION-Core
 
         self._init_components()
@@ -57,6 +58,14 @@ class AionApp:
         self.memory     = MemoryManager()
         self.brain      = AionBrain()
         self.app_router = AppRouter(self.brain, self.memory)
+
+        # Backup quotidien des apps
+        from aion_core.store.backup_manager import BackupManager
+        self.backup_mgr = BackupManager()
+        self.backup_mgr.schedule(
+            backup_hour = int(os.getenv("AION_BACKUP_HOUR", "18")),
+            registry    = "apps.local.json",
+        )
 
         # Updater AION-Core
         from aion_core.updater import AionUpdater
