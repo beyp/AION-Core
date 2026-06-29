@@ -308,15 +308,31 @@ def register_store_routes(app, aion_app):
         from pathlib import Path as _P
         import json as _json
         body          = await request.json()
-        github_repo   = body.get("github", "")
+        github_repo   = body.get("github", "") or ""
+        install_path  = body.get("install_path", "") or ""  # C:/code/python/[App]
         app_id        = body.get("app_id") or None
         appdata_files = body.get("appdata_files") or None
         port          = int(body.get("port", 0))
         app_type      = body.get("app_type", "auto")
+        command       = body.get("command") or None  # depuis la modal de detection
 
-        if not github_repo:
+        from pathlib import Path as _PI
+
+        # Si install_path fourni et dossier existant → utiliser directement
+        if install_path and _PI(install_path).exists():
+            if not app_id:
+                app_id = _PI(install_path).name.lower().replace("-", "_")
+            # Generer start[App].bat si absent
+            try:
+                from aion_core.store.process_manager import ProcessManager as _PM
+                bat = _PM.generate_start_bat(app_id, install_path, command=command)
+                if bat:
+                    logger.info("Bat genere: %s", bat)
+            except Exception as _be:
+                logger.warning("generate_start_bat: %s", _be)
+        elif not github_repo:
             return JSONResponse({"success": False,
-                "message": "github requis (ex: beyp/QuickMind)"}, status_code=400)
+                "message": "Fournis un chemin local (install_path) ou un repo GitHub"}, status_code=400)
 
         # 1. Clone + setup (venv, pip, bat)
         result = _get_store().install(github_repo, app_id=app_id,
