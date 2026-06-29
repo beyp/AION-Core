@@ -503,6 +503,41 @@ function inheritOne(appId, fname, key) {
   .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
 }
 
+// ── Backup ────────────────────────────────────────────────────────
+function doBackup(appId) {
+  var res = document.getElementById('sr-' + appId);
+  if (!res) return;
+  showMsg(res, 'orange', '&#x23F3; Backup en cours...');
+  fetch('/api/store/backup/' + appId, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({force: false})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.already_existed && !d.success) {
+      // Demander confirmation pour écraser
+      if (confirm('Un backup existe déjà pour aujourd'hui.
+' + d.message + '
+
+Écraser ?')) {
+        fetch('/api/store/backup/' + appId, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({force: true})
+        })
+        .then(function(r2) { return r2.json(); })
+        .then(function(d2) {
+          showMsg(res, d2.success ? 'green' : 'red', d2.message);
+        });
+      } else {
+        showMsg(res, 'orange', 'Backup annulé.');
+      }
+    } else {
+      showMsg(res, d.success ? 'green' : 'red', d.message);
+    }
+  })
+  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+}
+
 // ── Utilitaire ────────────────────────────────────────────────────
 function showMsg(el, color, html) {
   var colors = {green:'var(--green)', red:'var(--red)', orange:'var(--orange)', blue:'var(--accent)'};
