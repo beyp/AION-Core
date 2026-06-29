@@ -24,7 +24,8 @@ from aion_core.store.appdata_manager import AppDataManager
 
 logger = logging.getLogger(__name__)
 
-AION_APPS_ROOT = Path(os.getenv("AION_APPS_ROOT", r"C:\AION_APPS"))
+AION_APPS_ROOT = Path(os.getenv("AION_APPS_ROOT", "C:/AION_APPS"))
+CODE_ROOT      = Path(os.getenv("AION_CODE_ROOT", "C:/code/python"))
 REGISTRY_FILE      = Path("apps.json")        # built-in apps (git-tracked)
 LOCAL_REGISTRY_FILE = Path("apps.local.json")  # personal apps (git-ignored)
 
@@ -157,14 +158,14 @@ class AppStore:
 
     def __init__(self, registry_path: str = "apps.local.json", root: str | None = None) -> None:
         self.root          = Path(root) if root else AION_APPS_ROOT
-        self.repos_dir     = self.root / "repos"
+        self.code_root     = CODE_ROOT  # C:/code/python — repos existants
         # AppStore ecrit toujours dans apps.local.json (git-ignored)
         self.registry_path = Path(registry_path)
         self.appdata_mgr   = AppDataManager(root=str(self.root))
         self._registry     = self._load_registry()
         self._manifest     = self._load_manifest()
 
-        self.repos_dir.mkdir(parents=True, exist_ok=True)
+        self.code_root.mkdir(parents=True, exist_ok=True)
         (self.root / ".aion").mkdir(parents=True, exist_ok=True)
 
     # ── Registry / Manifest ───────────────────────────────────────
