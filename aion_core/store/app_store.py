@@ -232,7 +232,9 @@ class AppStore:
             app_id = github_repo.split("/")[-1].lower().replace("-", "_")
 
         repo_name    = github_repo.split("/")[-1]
-        install_path = self.repos_dir / repo_name
+        # Utiliser C:/code/python/[App] si le dossier existe deja (repo local)
+        # Sinon git clone dans C:/code/python/[App]
+        install_path = self.code_root / repo_name
 
         # Deja installe ?
         # On verifie le dossier ET le status dans apps.local.json
@@ -306,7 +308,7 @@ class AppStore:
         apps[app_id]["status"] = "installed"
         apps[app_id]["store"]  = {
             "install_path":  str(install_path),
-            "appdata_path":  str(self.root / "appdata" / app_id),
+            "appdata_path":  str(self.root / "appdata" / app_id),  # AION_APPS/appdata/[app]
             "appdata_files": files_to_manage,
             "github":        github_repo,
             "installed_at":  today,
