@@ -185,26 +185,159 @@ document.addEventListener('htmx:afterSwap', function(e) {
 });
 
 // ── Install ───────────────────────────────────────────────────────
-function doInstall() {
-  var repo  = document.getElementById('inst-repo').value.trim();
-  var port  = parseInt(document.getElementById('inst-port').value) || 0;
-  var atype = document.getElementById('inst-type').value;
-  var res   = document.getElementById('inst-result');
-  if (!repo) { alert('Saisis un repo GitHub'); return; }
-  showMsg(res, 'orange', '&#x23F3; Installation en cours... (1-5 min)');
+// Detection automatique
+var _detectData = null;
+var _selectedOption = null;
+
+function autoFillRepo(pathVal) {
+  // Auto-remplir repo depuis le path : C:/code/python/QuickMind → beyp/QuickMind
+  // (juste le nom du dossier, l'utilisateur corrige si besoin)
+  var parts = pathVal.replace(/\\/g, '/').split('/');
+  var name  = parts[parts.length - 1];
+  var repo  = document.getElementById('inst-repo');
+  if (name && !repo.value) {
+    repo.placeholder = 'beyp/' + name + ' (optionnel)';
+  }
+}
+
+function doDetect() {
+  var path = document.getElementById('inst-path').value.trim();
+  var repo = document.getElementById('inst-repo').value.trim();
+  var res  = document.getElementById('inst-result');
+
+  if (!path && !repo) {
+    alert('Saisis le chemin local (C:/code/python/QuickMind) ou le repo GitHub');
+    return;
+  }
+
+  // Si path vide mais repo fourni, construire le path par convention
+  if (!path && repo) {
+    var name = repo.split('/').pop();
+    path = 'C:/code/python/' + name;
+    document.getElementById('inst-path').value = path;
+  }
+
+  showMsg(res, 'orange', '&#x23F3; Analyse du dossier...');
+
+  fetch('/api/store/detect', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({install_path: path})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.success) { showMsg(res, 'red', d.message); return; }
+    res.style.display = 'none';
+    _detectData = d;
+    showDetectModal(d);
+  })
+  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+}
+
+function showDetectModal(d) {
+  document.getElementById('dm-title').textContent = d.app_name;
+  var body = '';
+
+  // Info dossier
+  body += '<div style="font-size:.8rem;color:var(--dim);margin-bottom:12px;">'
+        + '&#x1F4C1; <code>' + d.install_path + '</code></div>';
+
+  // Infos rapides
+  var badges = '';
+  if (d.venv_exists) badges += '<span style="background:rgba(76,175,80,.2);color:var(--green);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;">&#x2705; Venv</span>';
+  if (d.req_files.length) badges += '<span style="background:rgba(30,144,255,.2);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;">&#x1F4E6; requirements</span>';
+  if (d.config_files.length) badges += '<span style="background:rgba(255,152,0,.2);color:var(--orange);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;">&#x2699;&#xFE0F; ' + d.config_files.join(', ') + '</span>';
+  if (badges) body += '<div style="margin-bottom:12px;">' + badges + '</div>';
+
+  // start[App].bat existant ?
+  if (d.bat_exists) {
+    body += '<div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);'
+          + 'border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;">'
+          + '<strong style="color:var(--green);">&#x2705; ' + d.bat_name + ' trouvé !</strong>'
+          + '<div style="color:var(--dim);font-size:.75rem;margin-top:4px;">Ce script sera utilisé pour lancer l\'app.</div>'
+          + (d.bat_preview ? '<pre style="margin-top:6px;font-size:.72rem;color:#888;white-space:pre-wrap;max-height:80px;overflow:hidden;">' + d.bat_preview + '</pre>' : '')
+          + '</div>';
+  } else {
+    body += '<div style="background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);'
+          + 'border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:var(--orange);">'
+          + '&#x26A0;&#xFE0F; ' + d.bat_name + ' absent — AION le générera automatiquement.'
+          + '</div>';
+  }
+
+  // Options de lancement
+  body += '<div style="font-weight:600;font-size:.85rem;margin-bottom:8px;">Mode de lancement détecté :</div>';
+
+  if (d.options.length === 0) {
+    body += '<p style="color:var(--red);font-size:.85rem;">&#x274C; Aucun fichier de lancement trouvé.</p>';
+  } else {
+    d.options.forEach(function(opt, idx) {
+      var isRec = opt.recommended;
+      var selColor = isRec ? 'var(--accent)' : 'var(--border)';
+      body += '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;'
+            + 'border:2px solid ' + selColor + ';border-radius:8px;margin-bottom:8px;cursor:pointer;'
+            + 'background:' + (isRec ? 'rgba(30,144,255,.08)' : 'transparent') + ';">'
+            + '<input type="radio" name="launch-opt" value="' + idx + '"'
+            + (isRec ? ' checked' : '') + ' style="margin-top:3px;flex-shrink:0;"'
+            + ' onchange="_selectedOption=d.options[' + idx + ']">'
+            + '<div style="flex:1;">'
+            + '<div style="font-weight:600;font-size:.88rem;">' + opt.icon + ' ' + opt.label
+            + (isRec ? ' <span style="font-size:.68rem;background:rgba(30,144,255,.2);color:var(--accent);padding:1px 5px;border-radius:3px;">Recommandé</span>' : '')
+            + '</div>'
+            + '<div style="font-size:.75rem;color:var(--dim);margin-top:2px;">'
+            + 'Fichier : <code>' + opt.file + '</code></div>'
+            + '<div style="font-size:.72rem;color:#555;margin-top:1px;">'
+            + opt.command.join(' ') + '</div>'
+            + '</div></label>';
+    });
+    // Pré-sélectionner l'option recommandée
+    _selectedOption = d.options.find(function(o) { return o.recommended; }) || d.options[0];
+  }
+
+  // Port
+  body += '<div style="margin-top:12px;display:flex;align-items:center;gap:10px;">'
+        + '<label style="font-size:.82rem;color:var(--dim);white-space:nowrap;">Port de l\'app :</label>'
+        + '<input id="dm-port" type="number" placeholder="8765" value=""'
+        + ' style="width:100px;padding:6px 10px;font-size:.85rem;"></div>';
+
+  document.getElementById('dm-body').innerHTML = body;
+  document.getElementById('detect-modal').style.display = 'flex';
+}
+
+function closeDetect() {
+  document.getElementById('detect-modal').style.display = 'none';
+  _detectData = null;
+}
+
+function confirmInstall() {
+  if (!_detectData) return;
+  var repo   = document.getElementById('inst-repo').value.trim();
+  var port   = parseInt(document.getElementById('dm-port').value) || 0;
+  var res    = document.getElementById('inst-result');
+  var optIdx = document.querySelector('input[name="launch-opt"]:checked');
+  if (optIdx) _selectedOption = _detectData.options[parseInt(optIdx.value)];
+
+  closeDetect();
+  showMsg(res, 'orange', '&#x23F3; Installation en cours...');
+
   fetch('/api/store/install', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({github: repo, port: port, app_type: atype})
+    body: JSON.stringify({
+      github:       repo || null,
+      install_path: _detectData.install_path,
+      port:         port,
+      app_type:     _selectedOption ? _selectedOption.type : 'auto',
+      command:      _selectedOption ? _selectedOption.command : null,
+    })
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
     showMsg(res, d.success ? 'green' : 'red', d.message
-      + (d.detected_type ? ' | Type: ' + d.detected_type : '')
       + (d.launch && d.launch.message ? ' | ' + d.launch.message : ''));
-    if (d.success) setTimeout(function() { location.reload(); }, 2500);
+    if (d.success) setTimeout(function() { location.reload(); }, 2000);
   })
   .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
 }
+
+function doInstall() { doDetect(); }  // alias pour compatibilité
 
 // ── App Actions ───────────────────────────────────────────────────
 function appAction(action, appId) {
