@@ -832,7 +832,7 @@ def register_store_routes(app, aion_app):
                    app_cfg.get("port", 0) or 0)
 
         env = {
-            "AION_DATA_DIR": str(_P(os.getenv("AION_APPS_ROOT", "C:/AION_APPS")) / "appdata" / app_id),
+            "AION_DATA_DIR": install_path.replace("\\\\", "/"),
             "AION_APP_ID":   app_id,
         }
         env.update(autostart.get("env", {}))
