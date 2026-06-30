@@ -13,11 +13,31 @@ Usage :
 """
 import logging
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def build_activation_command(install_path: str | os.PathLike[str], command_text: str) -> list[str]:
+    """Build a startup command that activates the local venv before running the app."""
+    root = Path(install_path)
+    activate_ps1 = root / ".venv" / "Scripts" / "Activate.ps1"
+
+    if sys.platform == "win32" and activate_ps1.exists():
+        return [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            f"Set-Location '{root.resolve().as_posix()}'; ./.venv/Scripts/Activate.ps1; {command_text}",
+        ]
+
+    python_exe = str(root / ".venv" / "Scripts" / "python.exe") if (root / ".venv" / "Scripts" / "python.exe").exists() else sys.executable
+    return [python_exe] + shlex.split(command_text)
 
 
 class AppSetup:
@@ -292,9 +312,9 @@ class AppSetup:
             logger.warning("Aucun entry point trouve dans %s, fallback main.py", self.install_path)
             script = "main.py"
 
-        python_exe = str(self.venv_python) if self.venv_python.exists() else sys.executable
-        logger.info("Entry point detecte : %s -> %s %s", self.install_path.name, python_exe, script)
-        return [python_exe, script]
+        command_text = f"python {script}"
+        logger.info("Entry point detecte : %s -> %s", self.install_path.name, command_text)
+        return build_activation_command(self.install_path, command_text)
 
     def scan_data_after_run(self) -> list[str]:
         """

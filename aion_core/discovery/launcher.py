@@ -20,6 +20,8 @@ from pathlib import Path
 
 import requests as _http
 
+from aion_core.store.app_setup import build_activation_command
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,13 +56,10 @@ def _detect_launch_command(install_path: str) -> list[str] | None:
     if not root.exists():
         return None
 
-    venv_python = root / ".venv" / "Scripts" / "python.exe"
-    python_exe  = str(venv_python) if venv_python.exists() else sys.executable
-
     # Scripts Python candidats par ordre de priorite
     for script in ["run_api.py", "main.py", "app.py", "server.py", "run.py"]:
         if (root / script).exists():
-            return [python_exe, script]
+            return build_activation_command(root, f"python {script}")
 
     return None
 

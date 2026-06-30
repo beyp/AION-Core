@@ -20,6 +20,8 @@ import sys
 import time
 from pathlib import Path
 
+from aion_core.store.app_setup import build_activation_command
+
 logger = logging.getLogger(__name__)
 
 PID_FILE = Path("data") / "pids.json"
@@ -155,13 +157,12 @@ class ProcessManager:
                     except Exception:
                         pass
                     module = script.replace(".py", "")
-                    cmd = [python, "-m", "uvicorn",
-                           f"{module}:{app_var}",
-                           "--host", "0.0.0.0",
-                           "--port", "8000",
-                           "--reload"]
+                    cmd = build_activation_command(
+                        root,
+                        f"python -m uvicorn {module}:{app_var} --host 0.0.0.0 --port 8000 --reload",
+                    )
                 else:
-                    cmd = [python, script]
+                    cmd = build_activation_command(root, f"python {script}")
 
                 return {
                     "type":         stype,

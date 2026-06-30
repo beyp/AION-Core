@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from aion_core.discovery.app_discovery import AppDiscovery
+from aion_core.store.app_setup import AppSetup
 
 
 class TestPathResolution:
@@ -145,6 +146,21 @@ port: 9000
 
 class TestRegistryCompatibility:
     """Tests compatibilite registre existant."""
+
+    def test_get_launch_command_uses_activation_style_for_venv_apps(self, tmp_path):
+        """get_launch_command() doit retourner une commande de type activation pour les apps avec venv."""
+        app_dir = tmp_path / "demoapp"
+        app_dir.mkdir()
+        (app_dir / "main.py").write_text("print('ok')\n", encoding="utf-8")
+        (app_dir / ".venv" / "Scripts").mkdir(parents=True)
+        (app_dir / ".venv" / "Scripts" / "Activate").write_text("", encoding="utf-8")
+
+        setup = AppSetup("demoapp", str(app_dir))
+        command = setup.get_launch_command()
+
+        assert command[0] == "powershell"
+        assert "Activate" in command[-1]
+        assert "python ./main.py" in command[-1]
 
     def test_no_auto_registration_from_scan(self):
         """scan_local_code_root() ne doit PAS auto-enregistrer les apps."""
