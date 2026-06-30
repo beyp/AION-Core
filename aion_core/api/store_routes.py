@@ -318,31 +318,105 @@ def register_store_routes(app, aion_app):
 
         from pathlib import Path as _PI
 
-        # Si install_path fourni et dossier existant → utiliser directement
+        # ── Cas 1 : dossier local existant (C:/code/python/[App]) ──────────
+        # On enregistre directement dans apps.local.json sans git clone
         if install_path and _PI(install_path).exists():
+            root = _PI(install_path)
             if not app_id:
-                app_id = _PI(install_path).name.lower().replace("-", "_")
+                app_id = root.name.lower().replace("-", "_")
+            app_name = root.name
+
             # Generer start[App].bat si absent
+            bat_generated = None
             try:
-                from aion_core.store.process_manager import ProcessManager as _PM
-                bat = _PM.generate_start_bat(app_id, install_path, command=command)
-                if bat:
-                    logger.info("Bat genere: %s", bat)
+                bat_generated = ProcessManager.generate_start_bat(
+                    app_id, install_path, command=command)
+                if bat_generated:
+                    logger.info("Bat genere: %s", bat_generated)
             except Exception as _be:
                 logger.warning("generate_start_bat: %s", _be)
-        elif not github_repo:
+
+            # Scanner les fichiers appdata
+            from aion_core.store.app_store import _scan_appdata_files
+            scanned_files = _scan_appdata_files(install_path)
+
+            # Enregistrer dans apps.local.json
+            import json as _j
+            reg_file = _P("apps.local.json")
+            try:
+                reg = _j.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {"version":"1.0","apps":{}}
+            except Exception:
+                reg = {"version":"1.0","apps":{}}
+
+            import os as _os
+            today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+            appdata_path = str(_P(_os.getenv("AION_APPS_ROOT","C:/AION_APPS")) / "appdata" / app_id)
+            reg.setdefault("apps", {})[app_id] = {
+                "name":            app_name,
+                "type":            app_type if app_type != "auto" else "fastapi",
+                "status":          "installed",
+                "github":          github_repo or None,
+                "url":             f"http://localhost:{port}" if port else "",
+                "health_endpoint": "/health",
+                "icon":            "package",
+                "autostart": {
+                    "enabled":       True,
+                    "mode":          app_type if app_type != "auto" else "fastapi",
+                    "path":          install_path,
+                    "command":       command or [],
+                    "port":          port,
+                    "health_check":  False,
+                    "env": {
+                        "AION_DATA_DIR": appdata_path,
+                        "AION_APP_ID":   app_id,
+                    }
+                },
+                "store": {
+                    "install_path":  install_path,
+                    "appdata_path":  appdata_path,
+                    "appdata_files": scanned_files,
+                    "github":        github_repo or "",
+                    "installed_at":  today,
+                    "last_update":   today,
+                }
+            }
+            try:
+                reg_file.write_text(_j.dumps(reg, indent=2, ensure_ascii=False), encoding="utf-8")
+            except Exception as e:
+                logger.warning("apps.local.json write: %s", e)
+
+            # Recharger le router
+            try:
+                aion_app.app_router.reload_apps()
+            except Exception:
+                pass
+
+            installed_id = app_id
+            result = {
+                "success":       True,
+                "app_id":        app_id,
+                "install_path":  install_path,
+                "appdata_files": scanned_files,
+                "detected_type": app_type,
+                "detected_info": f"Dossier local {install_path}",
+                "message":       f"'{app_name}' ajout&eacute; depuis {install_path}" +
+                                 (f" | {len(scanned_files)} fichier(s) d&eacute;tect&eacute;(s)" if scanned_files else "") +
+                                 (f" | {bat_generated.split('/')[-1]} g&eacute;n&eacute;r&eacute;" if bat_generated else ""),
+            }
+
+        # ── Cas 2 : git clone depuis GitHub ───────────────────────────────
+        elif github_repo:
+            result = _get_store().install(github_repo, app_id=app_id,
+                                          appdata_files=appdata_files)
+            if not result.get("success"):
+                return result
+            installed_id = result.get("app_id", app_id or github_repo.split("/")[-1].lower())
+            install_path = result.get("install_path", "")
+
+        else:
             return JSONResponse({"success": False,
-                "message": "Fournis un chemin local (install_path) ou un repo GitHub"}, status_code=400)
-
-        # 1. Clone + setup (venv, pip, bat)
-        result = _get_store().install(github_repo, app_id=app_id,
-                                      appdata_files=appdata_files)
-        if not result.get("success"):
-            return result
-
-        installed_id = result.get("app_id", app_id or
-                                  github_repo.split("/")[-1].lower())
-        install_path = result.get("install_path", "")
+                "message": "Fournis un chemin local (install_path) ou un repo GitHub"},
+                status_code=400)
 
         # 2. Recharger le router
         try:
