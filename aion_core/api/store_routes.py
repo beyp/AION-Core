@@ -336,44 +336,59 @@ def register_store_routes(app, aion_app):
             except Exception as _be:
                 logger.warning("generate_start_bat: %s", _be)
 
-            # Scanner les fichiers appdata
-            from aion_core.store.app_store import _scan_appdata_files
-            scanned_files = _scan_appdata_files(install_path)
+            # Fichiers appdata : seulement DB, .env, config — pas les attachements
+            import json as _j, os as _os
+            from pathlib import Path as _PP
+            _root = _PP(install_path)
+            scanned_files = []
+            for _pat in ["*.db", "*.sqlite", "*.sqlite3"]:
+                for _f in _root.glob(_pat):
+                    scanned_files.append(str(_f.relative_to(_root)).replace("\\", "/"))
+            for _pat in ["data/*.db", "data/*.sqlite"]:
+                for _f in _root.glob(_pat):
+                    _rel = str(_f.relative_to(_root)).replace("\\", "/")
+                    if _rel not in scanned_files:
+                        scanned_files.append(_rel)
+            for _name in [".env", "config.yaml", "config.yml", "settings.json"]:
+                if (_root / _name).exists():
+                    scanned_files.append(_name)
 
             # Enregistrer dans apps.local.json
-            import json as _j
             reg_file = _P("apps.local.json")
             try:
                 reg = _j.loads(reg_file.read_text(encoding="utf-8")) if reg_file.exists() else {"version":"1.0","apps":{}}
             except Exception:
                 reg = {"version":"1.0","apps":{}}
 
-            import os as _os
-            today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
-            appdata_path = str(_P(_os.getenv("AION_APPS_ROOT","C:/AION_APPS")) / "appdata" / app_id)
+            today        = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+            # AION_DATA_DIR = le dossier de l'app lui-meme (C:/code/python/[App])
+            # L'app y trouve ses donnees comme d'habitude
+            aion_data_dir = install_path.replace("\\", "/")
+            url_val       = f"http://localhost:{port}" if port else ""
+
             reg.setdefault("apps", {})[app_id] = {
                 "name":            app_name,
                 "type":            app_type if app_type != "auto" else "fastapi",
                 "status":          "installed",
                 "github":          github_repo or None,
-                "url":             f"http://localhost:{port}" if port else "",
+                "url":             url_val,
                 "health_endpoint": "/health",
                 "icon":            "package",
                 "autostart": {
-                    "enabled":       True,
-                    "mode":          app_type if app_type != "auto" else "fastapi",
-                    "path":          install_path,
-                    "command":       command or [],
-                    "port":          port,
-                    "health_check":  False,
+                    "enabled":      True,
+                    "mode":         app_type if app_type != "auto" else "fastapi",
+                    "path":         install_path,
+                    "command":      command or [],
+                    "port":         port,
+                    "health_check": False,
                     "env": {
-                        "AION_DATA_DIR": appdata_path,
+                        "AION_DATA_DIR": aion_data_dir,
                         "AION_APP_ID":   app_id,
                     }
                 },
                 "store": {
                     "install_path":  install_path,
-                    "appdata_path":  appdata_path,
+                    "appdata_path":  install_path,
                     "appdata_files": scanned_files,
                     "github":        github_repo or "",
                     "installed_at":  today,
@@ -445,7 +460,7 @@ def register_store_routes(app, aion_app):
 
         # Preparer env avec AION_DATA_DIR
         env = {
-            "AION_DATA_DIR":  str(_P(os.getenv("AION_APPS_ROOT", "C:/AION_APPS")) / "appdata" / installed_id),
+            "AION_DATA_DIR":  installed_id,
             "AION_APP_ID":    installed_id,
         }
 
