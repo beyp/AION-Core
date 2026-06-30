@@ -438,7 +438,18 @@ class AppStore:
         }
 
     def uninstall(self, app_id: str, keep_appdata: bool = True) -> dict:
-        """Desinstalle (supprime repo, garde appdata par defaut)."""
+        """
+        Retire une app du registre AION.
+
+        IMPORTANT : Ne supprime JAMAIS le dossier C:/code/python/[App].
+        C'est ton repertoire de developpement — AION ne le touche pas.
+
+        Ce que fait "Supprimer" :
+          1. Stoppe le process si actif
+          2. Retire l'app de apps.local.json
+          3. Conserve C:/AION_APPS/appdata/[app]/ (garde tes donnees)
+          4. Ne supprime PAS C:/code/python/[App]/
+        """
         store_cfg = self._get_store_cfg(app_id)
         if not store_cfg:
             return {"success": False, "message": f"App '{app_id}' non trouvee"}
@@ -446,41 +457,35 @@ class AppStore:
         install_path  = Path(store_cfg["install_path"])
         appdata_files = store_cfg.get("appdata_files", [])
 
+        # Sauvegarder l'appdata avant de retirer (securite)
         if keep_appdata and appdata_files and install_path.exists():
-            self.appdata_mgr.save(app_id, str(install_path), appdata_files)
-            self.appdata_mgr.backup(app_id)
+            try:
+                self.appdata_mgr.save(app_id, str(install_path), appdata_files)
+                logger.info("Appdata sauvegarde avant uninstall: %s", app_id)
+            except Exception as e:
+                logger.warning("Appdata save avant uninstall: %s", e)
 
-        deleted = False
-        delete_error = ""
-        if install_path.exists():
-            # 1. Stopper l'app si elle tourne (liberer les fichiers verrouilles)
-            port = self._registry.get("apps", {}).get(app_id, {}) \
-                       .get("autostart", {}).get("port", 0)
-            if port:
-                try:
-                    import subprocess, time
-                    proc = subprocess.run(["netstat", "-ano"],
-                                         capture_output=True, text=True,
-                                         encoding="utf-8", errors="replace")
-                    for line in (proc.stdout or "").splitlines():
-                        if f":{port} " in line and "LISTENING" in line:
-                            parts = line.split()
-                            if parts:
-                                subprocess.run(["taskkill", "/PID", parts[-1], "/F"],
-                                               capture_output=True)
-                                logger.info("Process arrete sur port %d avant suppression", port)
-                            break
-                    time.sleep(1)  # laisser le temps au process de se terminer
-                except Exception as e:
-                    logger.warning("Stop process avant uninstall: %s", e)
+        # Stopper le process si actif
+        port = self._registry.get("apps", {}).get(app_id, {})                    .get("autostart", {}).get("port", 0)
+        if port:
+            try:
+                import subprocess, time
+                proc = subprocess.run(["netstat", "-ano"],
+                                      capture_output=True, text=True,
+                                      encoding="utf-8", errors="replace")
+                for line in (proc.stdout or "").splitlines():
+                    if f":{port} " in line and "LISTENING" in line:
+                        parts = line.split()
+                        if parts:
+                            subprocess.run(["taskkill", "/PID", parts[-1], "/F"],
+                                           capture_output=True)
+                            logger.info("Process stoppe (port %d) avant uninstall", port)
+                        break
+                time.sleep(0.5)
+            except Exception as e:
+                logger.warning("Stop avant uninstall: %s", e)
 
-            # 2. Supprimer avec _force_remove (gere read-only + rd /s /q)
-            deleted, delete_error = _force_remove(install_path)
-            if deleted:
-                logger.info("Repo supprime: %s", install_path)
-            else:
-                logger.error("Echec suppression repo %s: %s", install_path, delete_error)
-
+        # Retirer du registre uniquement — PAS de suppression du dossier
         apps = self._registry.get("apps", {})
         if app_id in apps:
             apps[app_id]["status"] = "uninstalled"
@@ -490,20 +495,18 @@ class AppStore:
         self._manifest.get("installed", {}).pop(app_id, None)
         self._save_manifest()
 
-        if deleted:
-            msg = f"'{app_id}' desinstalle et repertoire supprime"
-        elif delete_error:
-            msg = f"'{app_id}' retire du registre MAIS repertoire non supprime: {delete_error[:100]}"
-        else:
-            msg = f"'{app_id}' desinstalle (repertoire n'existait pas)"
-
+        msg = (f"'{app_id}' retire du registre AION. "
+               f"Dossier {install_path} conserve intact.")
         if keep_appdata:
-            msg += f" | appdata conserve dans C:\\AION_APPS\\appdata\\{app_id}"
+            appdata_path = str(self.root / "appdata" / app_id)
+            msg += f" | Appdata conserve dans {appdata_path}"
+
+        logger.info("Uninstall %s: %s", app_id, msg)
         return {
-            "success":  True,   # succes registre meme si dossier non supprime
-            "deleted":  deleted,
-            "message":  msg,
-            "warning":  delete_error if delete_error and not deleted else "",
+            "success": True,
+            "deleted": False,   # on ne supprime jamais C:/code/python/[App]
+            "message": msg,
+            "warning": "",
         }
 
     def restore_appdata(self, app_id: str) -> dict:
