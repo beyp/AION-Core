@@ -319,12 +319,17 @@ function closeDetect() {
 }
 
 function confirmInstall() {
-  if (!_detectData) return;
+  if (!_detectData) { alert("Donnees de detection perdues. Relance la detection."); return; }
   var repo   = document.getElementById("inst-repo").value.trim();
   var port   = parseInt(document.getElementById("dm-port").value) || 0;
   var res    = document.getElementById("inst-result");
   var optEl  = document.querySelector("input[name=\"launch-opt\"]:checked");
   if (optEl) _selectedOption = _detectData.options[parseInt(optEl.value)];
+
+  // Sauvegarder AVANT closeDetect() qui remet _detectData = null
+  var savedPath    = _detectData.install_path;
+  var savedType    = _selectedOption ? _selectedOption.type    : "auto";
+  var savedCommand = _selectedOption ? _selectedOption.command : null;
 
   closeDetect();
   showMsg(res, "orange", "&#x23F3; Installation en cours...");
@@ -334,10 +339,10 @@ function confirmInstall() {
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       github:       repo || null,
-      install_path: _detectData.install_path,
+      install_path: savedPath,
       port:         port,
-      app_type:     _selectedOption ? _selectedOption.type : "auto",
-      command:      _selectedOption ? _selectedOption.command : null,
+      app_type:     savedType,
+      command:      savedCommand,
     })
   })
   .then(function(r) { return r.json(); })
