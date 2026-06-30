@@ -119,20 +119,20 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
     </div>
 
     <!-- Modal de detection -->
-    <div id="detect-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
-         z-index:3000;align-items:center;justify-content:center;">
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;
-           width:640px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;">
-        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;">
-          <span style="font-weight:600;font-size:1rem;flex:1;">&#x1F50D; Détection — <span id="dm-title"></span></span>
-          <button onclick="closeDetect()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:1.2rem;">&#x2715;</button>
+    <!-- Modal de detection -->
+    <div id="detect-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);"><div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:16px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;width:720px;max-width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;">
+          <span style="font-size:1rem;flex:1;font-weight:600;">&#x1F50D; D&eacute;tection &mdash; <span id="dm-title" style="color:var(--accent);"></span></span>
+          <button onclick="closeDetect()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:1.1rem;padding:4px 8px;">&#x2715;</button>
         </div>
-        <div id="dm-body" style="padding:16px 20px;overflow-y:auto;flex:1;"></div>
-        <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;">
+        <div id="dm-body" style="padding:16px 20px;overflow-y:auto;flex:1;min-height:0;"></div>
+        <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">
           <button onclick="closeDetect()" class="btn btn-gray" style="padding:8px 16px;">Annuler</button>
-          <button onclick="confirmInstall()" class="btn btn-blue" style="padding:8px 20px;">&#x2705; Confirmer et installer</button>
+          <button onclick="confirmInstall()" class="btn btn-blue" style="padding:8px 20px;font-weight:600;">&#x2705; Confirmer et installer</button>
         </div>
-      </div>
+      </div></div>
+    </div>
     </div>
 
     <!-- Apps installées via htmx -->
@@ -262,20 +262,23 @@ function showDetectModal(d) {
     body += "<p style=\"color:var(--red);font-size:.85rem;\">&#x274C; Aucun fichier de lancement trouv&eacute;.</p>";
   } else {
     d.options.forEach(function(opt, idx) {
-      var isRec = opt.recommended;
-      var selColor = isRec ? "var(--accent)" : "var(--border)";
-      var bg = isRec ? "rgba(30,144,255,.08)" : "transparent";
-      body += "<label style=\"display:flex;align-items:flex-start;gap:10px;padding:10px 12px;"
-            + "border:2px solid " + selColor + ";border-radius:8px;margin-bottom:8px;cursor:pointer;"
-            + "background:" + bg + ";\">"
+      var isRec    = opt.recommended;
+      var bdr      = isRec ? "2px solid var(--accent)" : "1px solid var(--border)";
+      var bg       = isRec ? "rgba(30,144,255,.08)" : "rgba(255,255,255,.02)";
+      var cmdShort = opt.command ? opt.command.join(" ") : "";
+      if (cmdShort.length > 70) cmdShort = cmdShort.substring(0, 70) + "...";
+      body += "<label style=\"display:flex;align-items:flex-start;gap:10px;padding:10px 14px;"
+            + "border:" + bdr + ";border-radius:8px;margin-bottom:8px;cursor:pointer;"
+            + "background:" + bg + ";width:100%;box-sizing:border-box;\">"
             + "<input type=\"radio\" name=\"launch-opt\" value=\"" + idx + "\""
-            + (isRec ? " checked" : "") + " style=\"margin-top:3px;flex-shrink:0;\">"
-            + "<div style=\"flex:1;\">"
-            + "<div style=\"font-weight:600;font-size:.88rem;\">" + opt.icon + " " + opt.label
-            + (isRec ? " <span style=\"font-size:.68rem;background:rgba(30,144,255,.2);color:var(--accent);padding:1px 5px;border-radius:3px;\">Recommand&eacute;</span>" : "")
+            + (isRec ? " checked" : "") + " style=\"margin-top:4px;flex-shrink:0;accent-color:var(--accent);\">"
+            + "<div style=\"flex:1;min-width:0;\">"
+            + "<div style=\"font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;\">"
+            + "<span>" + opt.icon + " " + opt.label + "</span>"
+            + (isRec ? "<span style=\"font-size:.68rem;background:rgba(30,144,255,.2);color:var(--accent);padding:2px 7px;border-radius:4px;\">Recommand&eacute;</span>" : "")
             + "</div>"
-            + "<div style=\"font-size:.75rem;color:var(--dim);margin-top:2px;\">Fichier : <code>" + opt.file + "</code></div>"
-            + "<div style=\"font-size:.72rem;color:#555;margin-top:1px;\">" + opt.command.join(" ") + "</div>"
+            + "<div style=\"font-size:.78rem;color:var(--dim);margin-top:4px;\">Fichier : <code style=\"color:var(--green);\">" + opt.file + "</code></div>"
+            + "<div style=\"font-size:.72rem;color:#555;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;\">" + cmdShort + "</div>"
             + "</div></label>";
     });
     _selectedOption = d.options.find(function(o) { return o.recommended; }) || d.options[0];
