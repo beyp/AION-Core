@@ -110,36 +110,19 @@ class AionApp:
 
         host = os.getenv("AION_HOST", "0.0.0.0")
         port = int(os.getenv("AION_PORT", "8000"))
-        svc_port = int(os.getenv("AION_SERVICES_PORT", "8001"))
-
         print(f"\n{'='*50}")
         print(f"  \U0001f916 AION-Core v{self.VERSION}")
         print(f"  AI-First Personal Orchestrator")
         print(f"{'='*50}")
         print(f"  Dashboard : http://localhost:{port}")
         print(f"  Voice API : http://localhost:{port}/api/voice")
-        print(f"  Services  : http://localhost:{svc_port}")
+        print(f"  Services  : http://localhost:{port}/services")
         print(f"  API Docs  : http://localhost:{port}/docs")
         print(f"{'='*50}\n")
 
         app = create_app(self)
-
-        # Démarrer AION-Services sur port 8001 en thread daemon
-        def _start_services():
-            try:
-                from aion_core.services.service_runner import create_service_app
-                svc_app = create_service_app()
-                uvicorn.run(svc_app,
-                            host=os.getenv("AION_SERVICES_HOST", "0.0.0.0"),
-                            port=svc_port,
-                            log_level="warning",
-                            access_log=False)
-            except Exception as e:
-                logger.error("AION-Services erreur démarrage: %s", e)
-
-        t_svc = threading.Thread(target=_start_services, daemon=True, name="aion-services")
-        t_svc.start()
-        logger.info("AION-Services démarré sur port %s", svc_port)
+        # Services executes directement dans AION (port 8000/services)
+        # Plus besoin du port 8001 separé
 
         # Lancer les apps autostart en arriere-plan (non bloquant)
         import threading
