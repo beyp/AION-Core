@@ -168,380 +168,372 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 </div>
 
 <script>
-'use strict';
+"use strict";
 
-// ── Sidebar ───────────────────────────────────────────────────────
-document.addEventListener('htmx:afterSwap', function(e) {
-  if (e.target.id === 'sidebar-apps') {
-    e.target.querySelectorAll('.nav-item').forEach(function(a) {
-      if (a.getAttribute('href') === window.location.pathname) a.classList.add('active');
+// ── Sidebar ──────────────────────────────────────────────────────
+document.addEventListener("htmx:afterSwap", function(e) {
+  if (e.target.id === "sidebar-apps") {
+    e.target.querySelectorAll(".nav-item").forEach(function(a) {
+      if (a.getAttribute("href") === window.location.pathname) a.classList.add("active");
     });
   }
-  if (e.target.id === 'apps-list') {
-    e.target.querySelectorAll('[data-app-id]').forEach(function(el) {
+  if (e.target.id === "apps-list") {
+    e.target.querySelectorAll("[data-app-id]").forEach(function(el) {
       checkRunning(el.dataset.appId);
     });
   }
 });
 
-// ── Install ───────────────────────────────────────────────────────
-// Detection automatique
+// ── D&eacute;tection automatique ──────────────────────────────────────────
 var _detectData = null;
 var _selectedOption = null;
 
 function autoFillRepo(pathVal) {
-  // Auto-remplir repo depuis le path : C:/code/python/QuickMind → beyp/QuickMind
-  // (juste le nom du dossier, l'utilisateur corrige si besoin)
-  var parts = pathVal.replace(/\\/g, '/').split('/');
+  var parts = pathVal.replace(/\\/g, "/").split("/");
   var name  = parts[parts.length - 1];
-  var repo  = document.getElementById('inst-repo');
+  var repo  = document.getElementById("inst-repo");
   if (name && !repo.value) {
-    repo.placeholder = 'beyp/' + name + ' (optionnel)';
+    repo.placeholder = "beyp/" + name + " (optionnel)";
   }
 }
 
 function doDetect() {
-  var path = document.getElementById('inst-path').value.trim();
-  var repo = document.getElementById('inst-repo').value.trim();
-  var res  = document.getElementById('inst-result');
+  var path = document.getElementById("inst-path").value.trim();
+  var repo = document.getElementById("inst-repo").value.trim();
+  var res  = document.getElementById("inst-result");
 
   if (!path && !repo) {
-    alert('Saisis le chemin local (C:/code/python/QuickMind) ou le repo GitHub');
+    alert("Saisis le chemin local (C:/code/python/QuickMind) ou le repo GitHub");
     return;
   }
-
-  // Si path vide mais repo fourni, construire le path par convention
   if (!path && repo) {
-    var name = repo.split('/').pop();
-    path = 'C:/code/python/' + name;
-    document.getElementById('inst-path').value = path;
+    var name = repo.split("/").pop();
+    path = "C:/code/python/" + name;
+    document.getElementById("inst-path").value = path;
   }
 
-  showMsg(res, 'orange', '&#x23F3; Analyse du dossier...');
+  showMsg(res, "orange", "&#x23F3; Analyse du dossier...");
 
-  fetch('/api/store/detect', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  fetch("/api/store/detect", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({install_path: path})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    if (!d.success) { showMsg(res, 'red', d.message); return; }
-    res.style.display = 'none';
+    if (!d.success) { showMsg(res, "red", d.message); return; }
+    res.style.display = "none";
     _detectData = d;
     showDetectModal(d);
   })
-  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+  .catch(function(e) { showMsg(res, "red", "Erreur: " + e); });
 }
 
 function showDetectModal(d) {
-  document.getElementById('dm-title').textContent = d.app_name;
-  var body = '';
+  document.getElementById("dm-title").textContent = d.app_name;
+  var body = "";
 
-  // Info dossier
-  body += '<div style="font-size:.8rem;color:var(--dim);margin-bottom:12px;">'
-        + '&#x1F4C1; <code>' + d.install_path + '</code></div>';
+  body += "<div style=\"font-size:.8rem;color:var(--dim);margin-bottom:12px;\">"
+        + "&#x1F4C1; <code>" + d.install_path + "</code></div>";
 
-  // Infos rapides
-  var badges = '';
-  if (d.venv_exists) badges += '<span style="background:rgba(76,175,80,.2);color:var(--green);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;">&#x2705; Venv</span>';
-  if (d.req_files.length) badges += '<span style="background:rgba(30,144,255,.2);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;">&#x1F4E6; requirements</span>';
-  if (d.config_files.length) badges += '<span style="background:rgba(255,152,0,.2);color:var(--orange);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;">&#x2699;&#xFE0F; ' + d.config_files.join(', ') + '</span>';
-  if (badges) body += '<div style="margin-bottom:12px;">' + badges + '</div>';
+  var badges = "";
+  if (d.venv_exists) badges += "<span style=\"background:rgba(76,175,80,.2);color:var(--green);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;\">&#x2705; Venv</span>";
+  if (d.req_files && d.req_files.length) badges += "<span style=\"background:rgba(30,144,255,.2);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;\">&#x1F4E6; requirements</span>";
+  if (d.config_files && d.config_files.length) badges += "<span style=\"background:rgba(255,152,0,.2);color:var(--orange);padding:2px 8px;border-radius:4px;font-size:.72rem;margin-right:6px;\">&#x2699;&#xFE0F; " + d.config_files.join(", ") + "</span>";
+  if (badges) body += "<div style=\"margin-bottom:12px;\">" + badges + "</div>";
 
-  // start[App].bat existant ?
   if (d.bat_exists) {
-    body += '<div style="background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);'
-          + 'border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;">'
-          + '<strong style="color:var(--green);">&#x2705; ' + d.bat_name + ' trouvé !</strong>'
-          + '<div style="color:var(--dim);font-size:.75rem;margin-top:4px;">Ce script sera utilise pour lancer l&#39;app.</div>'
-          + (d.bat_preview ? '<pre style="margin-top:6px;font-size:.72rem;color:#888;white-space:pre-wrap;max-height:80px;overflow:hidden;">' + d.bat_preview + '</pre>' : '')
-          + '</div>';
+    body += "<div style=\"background:rgba(76,175,80,.1);border:1px solid rgba(76,175,80,.3);"
+          + "border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:.82rem;\">"
+          + "<strong style=\"color:var(--green);\">&#x2705; " + d.bat_name + " trouv&eacute; !</strong>"
+          + "<div style=\"color:var(--dim);font-size:.75rem;margin-top:4px;\">Ce script sera utilis&eacute; pour lancer l&apos;app.</div>"
+          + (d.bat_preview ? "<pre style=\"margin-top:6px;font-size:.72rem;color:#888;white-space:pre-wrap;max-height:80px;overflow:hidden;\">" + d.bat_preview + "</pre>" : "")
+          + "</div>";
   } else {
-    body += '<div style="background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);'
-          + 'border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:var(--orange);">'
-          + '&#x26A0;&#xFE0F; ' + d.bat_name + ' absent — AION le générera automatiquement.'
-          + '</div>';
+    body += "<div style=\"background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);"
+          + "border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:.8rem;color:var(--orange);\">"
+          + "&#x26A0;&#xFE0F; " + d.bat_name + " absent &mdash; AION le g&eacute;n&eacute;rera automatiquement."
+          + "</div>";
   }
 
-  // Options de lancement
-  body += '<div style="font-weight:600;font-size:.85rem;margin-bottom:8px;">Mode de lancement détecté :</div>';
+  body += "<div style=\"font-weight:600;font-size:.85rem;margin-bottom:8px;\">Mode de lancement d&eacute;tect&eacute; :</div>";
 
-  if (d.options.length === 0) {
-    body += '<p style="color:var(--red);font-size:.85rem;">&#x274C; Aucun fichier de lancement trouvé.</p>';
+  if (!d.options || d.options.length === 0) {
+    body += "<p style=\"color:var(--red);font-size:.85rem;\">&#x274C; Aucun fichier de lancement trouv&eacute;.</p>";
   } else {
     d.options.forEach(function(opt, idx) {
       var isRec = opt.recommended;
-      var selColor = isRec ? 'var(--accent)' : 'var(--border)';
-      body += '<label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;'
-            + 'border:2px solid ' + selColor + ';border-radius:8px;margin-bottom:8px;cursor:pointer;'
-            + 'background:' + (isRec ? 'rgba(30,144,255,.08)' : 'transparent') + ';">'
-            + '<input type="radio" name="launch-opt" value="' + idx + '"'
-            + (isRec ? ' checked' : '') + ' style="margin-top:3px;flex-shrink:0;"'
-            + ' onchange="_selectedOption=d.options[' + idx + ']">'
-            + '<div style="flex:1;">'
-            + '<div style="font-weight:600;font-size:.88rem;">' + opt.icon + ' ' + opt.label
-            + (isRec ? ' <span style="font-size:.68rem;background:rgba(30,144,255,.2);color:var(--accent);padding:1px 5px;border-radius:3px;">Recommandé</span>' : '')
-            + '</div>'
-            + '<div style="font-size:.75rem;color:var(--dim);margin-top:2px;">'
-            + 'Fichier : <code>' + opt.file + '</code></div>'
-            + '<div style="font-size:.72rem;color:#555;margin-top:1px;">'
-            + opt.command.join(' ') + '</div>'
-            + '</div></label>';
+      var selColor = isRec ? "var(--accent)" : "var(--border)";
+      var bg = isRec ? "rgba(30,144,255,.08)" : "transparent";
+      body += "<label style=\"display:flex;align-items:flex-start;gap:10px;padding:10px 12px;"
+            + "border:2px solid " + selColor + ";border-radius:8px;margin-bottom:8px;cursor:pointer;"
+            + "background:" + bg + ";\">"
+            + "<input type=\"radio\" name=\"launch-opt\" value=\"" + idx + "\""
+            + (isRec ? " checked" : "") + " style=\"margin-top:3px;flex-shrink:0;\">"
+            + "<div style=\"flex:1;\">"
+            + "<div style=\"font-weight:600;font-size:.88rem;\">" + opt.icon + " " + opt.label
+            + (isRec ? " <span style=\"font-size:.68rem;background:rgba(30,144,255,.2);color:var(--accent);padding:1px 5px;border-radius:3px;\">Recommand&eacute;</span>" : "")
+            + "</div>"
+            + "<div style=\"font-size:.75rem;color:var(--dim);margin-top:2px;\">Fichier : <code>" + opt.file + "</code></div>"
+            + "<div style=\"font-size:.72rem;color:#555;margin-top:1px;\">" + opt.command.join(" ") + "</div>"
+            + "</div></label>";
     });
-    // Pré-sélectionner l'option recommandée
     _selectedOption = d.options.find(function(o) { return o.recommended; }) || d.options[0];
   }
 
-  // Port
-  body += '<div style="margin-top:12px;display:flex;align-items:center;gap:10px;">'
-        + '<label style="font-size:.82rem;color:var(--dim);white-space:nowrap;">Port de l&#39;app :</label>'
-        + '<input id="dm-port" type="number" placeholder="8765" value=""'
-        + ' style="width:100px;padding:6px 10px;font-size:.85rem;"></div>';
+  body += "<div style=\"margin-top:12px;display:flex;align-items:center;gap:10px;\">"
+        + "<label style=\"font-size:.82rem;color:var(--dim);white-space:nowrap;\">Port de l&apos;app :</label>"
+        + "<input id=\"dm-port\" type=\"number\" placeholder=\"8765\" value=\"\""
+        + " style=\"width:100px;padding:6px 10px;font-size:.85rem;\"></div>";
 
-  document.getElementById('dm-body').innerHTML = body;
-  document.getElementById('detect-modal').style.display = 'flex';
+  document.getElementById("dm-body").innerHTML = body;
+  document.getElementById("detect-modal").style.display = "flex";
 }
 
 function closeDetect() {
-  document.getElementById('detect-modal').style.display = 'none';
+  document.getElementById("detect-modal").style.display = "none";
   _detectData = null;
 }
 
 function confirmInstall() {
   if (!_detectData) return;
-  var repo   = document.getElementById('inst-repo').value.trim();
-  var port   = parseInt(document.getElementById('dm-port').value) || 0;
-  var res    = document.getElementById('inst-result');
-  var optIdx = document.querySelector('input[name="launch-opt"]:checked');
-  if (optIdx) _selectedOption = _detectData.options[parseInt(optIdx.value)];
+  var repo   = document.getElementById("inst-repo").value.trim();
+  var port   = parseInt(document.getElementById("dm-port").value) || 0;
+  var res    = document.getElementById("inst-result");
+  var optEl  = document.querySelector("input[name=\"launch-opt\"]:checked");
+  if (optEl) _selectedOption = _detectData.options[parseInt(optEl.value)];
 
   closeDetect();
-  showMsg(res, 'orange', '&#x23F3; Installation en cours...');
+  showMsg(res, "orange", "&#x23F3; Installation en cours...");
 
-  fetch('/api/store/install', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  fetch("/api/store/install", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       github:       repo || null,
       install_path: _detectData.install_path,
       port:         port,
-      app_type:     _selectedOption ? _selectedOption.type : 'auto',
+      app_type:     _selectedOption ? _selectedOption.type : "auto",
       command:      _selectedOption ? _selectedOption.command : null,
     })
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    showMsg(res, d.success ? 'green' : 'red', d.message
-      + (d.launch && d.launch.message ? ' | ' + d.launch.message : ''));
+    showMsg(res, d.success ? "green" : "red", d.message
+      + (d.launch && d.launch.message ? " | " + d.launch.message : ""));
     if (d.success) setTimeout(function() { location.reload(); }, 2000);
   })
-  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+  .catch(function(e) { showMsg(res, "red", "Erreur: " + e); });
 }
 
-function doInstall() { doDetect(); }  // alias pour compatibilité
+function doInstall() { doDetect(); }
 
 // ── App Actions ───────────────────────────────────────────────────
 function appAction(action, appId) {
-  var res = document.getElementById('sr-' + appId);
+  var res = document.getElementById("sr-" + appId);
   if (!res) return;
-  if (action === 'uninstall' && !confirm('Désinstaller ' + appId + ' ? (appdata conservé)')) return;
+  if (action === "uninstall" && !confirm("D&eacute;sinstaller " + appId + " ? (appdata conserv&eacute;)")) return;
 
-  var METHODS = {start:'POST', stop:'POST', update:'POST', restore:'POST', scan:'GET', uninstall:'DELETE'};
-  var URLS    = {
-    start:    '/api/store/start/'   + appId,
-    stop:     '/api/store/stop/'    + appId,
-    update:   '/api/store/update/'  + appId,
-    restore:  '/api/store/restore/' + appId,
-    scan:     '/api/store/scan/'    + appId,
-    uninstall:'/api/store/'         + appId
+  var METHODS = {start:"POST", stop:"POST", update:"POST", restore:"POST", scan:"GET", uninstall:"DELETE"};
+  var URLS = {
+    start:     "/api/store/start/"   + appId,
+    stop:      "/api/store/stop/"    + appId,
+    update:    "/api/store/update/"  + appId,
+    restore:   "/api/store/restore/" + appId,
+    scan:      "/api/store/scan/"    + appId,
+    uninstall: "/api/store/"         + appId
   };
-  var MSGS = {start:'Démarrage...', stop:'Arrêt...', update:'Mise à jour...', restore:'Restauration...', scan:'Scan...', uninstall:'Désinstallation...'};
+  var MSGS = {
+    start:     "&#x23F3; D&eacute;marrage...",
+    stop:      "&#x23F3; Arr&ecirc;t...",
+    update:    "&#x23F3; Mise &agrave; jour (git pull)...",
+    restore:   "&#x23F3; Restauration...",
+    scan:      "&#x1F50D; Scan...",
+    uninstall: "Retrait du registre..."
+  };
 
-  showMsg(res, 'orange', MSGS[action] || 'En cours...');
+  showMsg(res, "orange", MSGS[action] || "&#x23F3; En cours...");
 
   fetch(URLS[action], {method: METHODS[action]})
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    showMsg(res, d.success ? 'green' : 'red', d.message || JSON.stringify(d));
-    if (d.success && (action === 'update' || action === 'uninstall'))
+    showMsg(res, d.success ? "green" : "red", d.message || JSON.stringify(d));
+    if (d.success && (action === "update" || action === "uninstall"))
       setTimeout(function() { location.reload(); }, 1500);
-    if (d.success && action === 'start')
+    if (d.success && action === "start")
       setTimeout(function() { checkRunning(appId); }, 2000);
   })
-  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+  .catch(function(e) { showMsg(res, "red", "Erreur: " + e); });
 }
 
 function checkRunning(appId) {
-  fetch('/api/store/running/' + appId)
+  fetch("/api/store/running/" + appId)
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    var s = document.getElementById('btn-start-' + appId);
-    var t = document.getElementById('btn-stop-'  + appId);
-    if (s) s.style.opacity = d.running ? '0.4' : '1';
-    if (t) t.style.opacity = d.running ? '1' : '0.4';
+    var s = document.getElementById("btn-start-" + appId);
+    var t = document.getElementById("btn-stop-"  + appId);
+    if (s) s.style.opacity = d.running ? "0.4" : "1";
+    if (t) t.style.opacity = d.running ? "1"   : "0.4";
   }).catch(function(){});
 }
 
+document.addEventListener("htmx:afterSwap", function(e) {
+  if (e.target.id === "apps-list") {
+    document.querySelectorAll("[id^=\"btn-start-\"]").forEach(function(btn) {
+      checkRunning(btn.id.replace("btn-start-", ""));
+    });
+  }
+});
+
 // ── Config Modal ──────────────────────────────────────────────────
-var _cfgApp = '';
+var _cfgApp = "";
 
 function openConfig(appId) {
   _cfgApp = appId;
-  document.getElementById('config-title').textContent = '⚙️ Config : ' + appId;
-  document.getElementById('config-msg').textContent = '';
-  var body = document.getElementById('config-body');
-  body.innerHTML = '<p style="color:var(--dim);text-align:center;padding:20px;">⏳ Chargement...</p>';
-  document.getElementById('config-modal').classList.add('open');
-  // Charger le HTML via Jinja2 server-side (plus de generation JS)
-  fetch('/api/store/' + appId + '/config-html')
+  document.getElementById("config-title").textContent = "\u2699\uFE0F Config : " + appId;
+  document.getElementById("config-msg").textContent = "";
+  var body = document.getElementById("config-body");
+  body.innerHTML = "<p style=\"color:var(--dim);text-align:center;padding:20px;\">&#x23F3; Chargement...</p>";
+  document.getElementById("config-modal").classList.add("open");
+  fetch("/api/store/" + appId + "/config-html")
   .then(function(r) { return r.text(); })
-  .then(function(html) {
-    body.innerHTML = html;
-  })
+  .then(function(html) { body.innerHTML = html; })
   .catch(function(e) {
-    body.innerHTML = '<p style="color:var(--red);">Erreur: ' + e + '</p>';
+    body.innerHTML = "<p style=\"color:var(--red);\">Erreur: " + e + "</p>";
   });
 }
 
-// togglePwd(btn) — affiche/masque un champ mot de passe
-// L'input est le frère précédent du bouton dans le conteneur flex
-function togglePwd(btn) {
-  var inp = btn.previousElementSibling;
-  while (inp && inp.tagName !== 'INPUT') {
-    inp = inp.previousElementSibling;
-  }
-  if (!inp) return;
-  if (inp.type === 'password') {
-    inp.type = 'text';
-    btn.style.color = 'var(--accent)';
-    btn.title = 'Masquer';
-  } else {
-    inp.type = 'password';
-    btn.style.color = '';
-    btn.title = 'Afficher';
-  }
-}
-
 function closeConfig() {
-  document.getElementById('config-modal').classList.remove('open');
-  _cfgApp = '';
+  document.getElementById("config-modal").classList.remove("open");
+  _cfgApp = "";
 }
 
 function saveConfig() {
   if (!_cfgApp) return;
   var updates = {};
-  document.querySelectorAll('#config-body [data-changed="1"]').forEach(function(inp) {
-    if (inp.value === '••••••') return;
+  document.querySelectorAll("#config-body [data-changed=\"1\"]").forEach(function(inp) {
+    if (inp.value === "\u2022\u2022\u2022\u2022\u2022\u2022") return;
     if (!updates[inp.dataset.file]) updates[inp.dataset.file] = {};
     updates[inp.dataset.file][inp.dataset.key] = inp.value;
   });
-  var msg = document.getElementById('config-msg');
-  if (!Object.keys(updates).length) { msg.textContent = 'Aucune modification.'; return; }
-  showMsg(msg, 'orange', '&#x23F3; Sauvegarde...');
-  fetch('/api/store/' + _cfgApp + '/config', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  var msg = document.getElementById("config-msg");
+  if (!Object.keys(updates).length) { msg.textContent = "Aucune modification."; return; }
+  showMsg(msg, "orange", "&#x23F3; Sauvegarde...");
+  fetch("/api/store/" + _cfgApp + "/config", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({updates: updates})
   })
   .then(function(r) { return r.json(); })
-  .then(function(d) { showMsg(msg, d.success ? 'green' : 'red', d.message); })
-  .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
-}
-
-function doImportEnv(appId) {
-  var src      = document.getElementById('import-src-path').value.trim();
-  var overwrite= document.getElementById('import-overwrite').checked;
-  var res      = document.getElementById('import-env-result');
-  if (!src) { alert('Saisis le chemin du fichier source'); return; }
-  res.style.display = 'block';
-  res.style.color   = 'var(--orange)';
-  res.textContent   = '⏳ Import en cours...';
-  fetch('/api/store/' + appId + '/import-env', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({source_path: src, overwrite: overwrite})
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    res.style.color = d.success ? 'var(--green)' : 'var(--red)';
-    res.textContent = d.message;
-    if (d.success) {
-      // Recharger la modale pour voir les nouvelles valeurs
-      setTimeout(function() { openConfig(appId); }, 1200);
-    }
-  })
-  .catch(function(e) { res.style.color='var(--red)'; res.textContent='Erreur: '+e; });
+  .then(function(d) { showMsg(msg, d.success ? "green" : "red", d.message); })
+  .catch(function(e) { showMsg(msg, "red", "Erreur: " + e); });
 }
 
 function inheritAll(appId) {
-  var msg = document.getElementById('config-msg');
-  showMsg(msg, 'orange', '&#x23F3; Héritage depuis AION...');
-  fetch('/api/store/' + appId + '/config/inherit', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  var msg = document.getElementById("config-msg");
+  showMsg(msg, "orange", "&#x23F3; H&eacute;ritage depuis AION...");
+  fetch("/api/store/" + appId + "/config/inherit", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({keys: null})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    showMsg(msg, d.success ? 'green' : 'red',
-      d.success ? '\u2705 ' + (d.propagated||[]).length + ' clé(s) héritée(s)' : (d.message||'Erreur'));
+    showMsg(msg, d.success ? "green" : "red",
+      d.success ? "&#x2705; " + (d.propagated||[]).length + " cl&eacute;(s) h&eacute;rit&eacute;e(s)" : (d.message||"Erreur"));
     if (d.success) setTimeout(function() { openConfig(appId); }, 1000);
   })
-  .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
+  .catch(function(e) { showMsg(msg, "red", "Erreur: " + e); });
 }
 
 function inheritOne(appId, fname, key) {
-  var msg = document.getElementById('config-msg');
-  showMsg(msg, 'orange', '&#x23F3; Héritage ' + key + '...');
-  fetch('/api/store/' + appId + '/config/inherit', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  var msg = document.getElementById("config-msg");
+  showMsg(msg, "orange", "&#x23F3; H&eacute;ritage " + key + "...");
+  fetch("/api/store/" + appId + "/config/inherit", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({keys: [key]})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    showMsg(msg, d.success ? 'green' : 'red',
-      d.success ? '\u2705 ' + key + ' hérité' : (d.message||'Erreur'));
+    showMsg(msg, d.success ? "green" : "red",
+      d.success ? "&#x2705; " + key + " h&eacute;rit&eacute;" : (d.message||"Erreur"));
     if (d.success) setTimeout(function() { openConfig(appId); }, 800);
   })
-  .catch(function(e) { showMsg(msg, 'red', 'Erreur: ' + e); });
+  .catch(function(e) { showMsg(msg, "red", "Erreur: " + e); });
+}
+
+function doImportEnv(appId) {
+  var src      = document.getElementById("import-src-" + appId).value.trim();
+  var overwrite= document.getElementById("import-ow-" + appId).checked;
+  var res      = document.getElementById("import-env-result");
+  if (!src) { alert("Saisis le chemin du fichier source"); return; }
+  res.style.display = "block";
+  res.style.color   = "var(--orange)";
+  res.textContent   = "&#x23F3; Import en cours...";
+  fetch("/api/store/" + appId + "/import-env", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({source_path: src, overwrite: overwrite})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    res.style.color = d.success ? "var(--green)" : "var(--red)";
+    res.textContent = d.message;
+    if (d.success) setTimeout(function() { openConfig(appId); }, 1200);
+  })
+  .catch(function(e) { res.style.color="var(--red)"; res.textContent="Erreur: "+e; });
+}
+
+function togglePwd(btn) {
+  var inp = btn.previousElementSibling;
+  while (inp && inp.tagName !== "INPUT") inp = inp.previousElementSibling;
+  if (!inp) return;
+  if (inp.type === "password") {
+    inp.type = "text";
+    btn.style.color = "var(--accent)";
+  } else {
+    inp.type = "password";
+    btn.style.color = "";
+  }
 }
 
 // ── Backup ────────────────────────────────────────────────────────
 function doBackup(appId) {
-  var res = document.getElementById('sr-' + appId);
+  var res = document.getElementById("sr-" + appId);
   if (!res) return;
-  showMsg(res, 'orange', '&#x23F3; Backup en cours...');
-  fetch('/api/store/backup/' + appId, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+  showMsg(res, "orange", "&#x23F3; Backup en cours...");
+  fetch("/api/store/backup/" + appId, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({force: false})
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
     if (d.already_existed && !d.success) {
-      var confirmMsg = 'Un backup existe deja.\n' + d.message + '\n\nEcraser ?';
+      var confirmMsg = "Un backup existe d\u00e9j\u00e0 pour aujourd'hui.\n" + d.message + "\n\nEcraser ?";
       if (confirm(confirmMsg)) {
-        fetch('/api/store/backup/' + appId, {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
+        fetch("/api/store/backup/" + appId, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
           body: JSON.stringify({force: true})
         })
         .then(function(r2) { return r2.json(); })
-        .then(function(d2) {
-          showMsg(res, d2.success ? 'green' : 'red', d2.message);
-        });
+        .then(function(d2) { showMsg(res, d2.success ? "green" : "red", d2.message); });
       } else {
-        showMsg(res, 'orange', 'Backup annule.');
+        showMsg(res, "orange", "Backup annul&eacute;.");
       }
     } else {
-      showMsg(res, d.success ? 'green' : 'red', d.message);
+      showMsg(res, d.success ? "green" : "red", d.message);
     }
   })
-  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
-}
-  })
-  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+  .catch(function(e) { showMsg(res, "red", "Erreur: " + e); });
 }
 
 // ── Utilitaire ────────────────────────────────────────────────────
 function showMsg(el, color, html) {
-  var colors = {green:'var(--green)', red:'var(--red)', orange:'var(--orange)', blue:'var(--accent)'};
-  el.style.display = 'block';
+  var colors = {green:"var(--green)", red:"var(--red)", orange:"var(--orange)", blue:"var(--accent)"};
+  el.style.display = "block";
   el.style.color   = colors[color] || color;
   el.innerHTML     = html;
 }
