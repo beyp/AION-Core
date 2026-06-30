@@ -432,7 +432,7 @@ def register_store_routes(app, aion_app):
         """
         Importe un .env ou config.yaml depuis un chemin local vers appdata/.
         Utile pour récupérer le .env de ton répertoire de dev local
-        (C:/code/python/[Repo]/.env) apres un git clone dans AION_APPS.
+        (C:/code/python/[Repo]/.env) apres un git clone.
 
         Body: {
             "source_path": "C:/code/python/QuickMind/.env",
