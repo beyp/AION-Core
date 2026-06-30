@@ -10,7 +10,7 @@ POST /api/store/restore/{app_id}   -> restaure appdata -> repo
 POST /api/store/register-file      -> ajoute manuellement un fichier persistant
 DELETE /api/store/{app_id}         -> desinstalle (garde appdata)
 """
-import logging
+import logging, os
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
@@ -350,7 +350,7 @@ def register_store_routes(app, aion_app):
 
             import os as _os
             today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
-            appdata_path = str(_P(_os.getenv("AION_APPS_ROOT","C:/AION_APPS")) / "appdata" / app_id)
+            appdata_path = str(_P(_os.getenv("AION_APPS_ROOT","C:/code/python")) / "data" / app_id)
             reg.setdefault("apps", {})[app_id] = {
                 "name":            app_name,
                 "type":            app_type if app_type != "auto" else "fastapi",

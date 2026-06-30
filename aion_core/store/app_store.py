@@ -24,7 +24,7 @@ from aion_core.store.appdata_manager import AppDataManager
 
 logger = logging.getLogger(__name__)
 
-AION_APPS_ROOT = Path(os.getenv("AION_APPS_ROOT", "C:/AION_APPS"))
+AION_APPS_ROOT = Path(os.getenv("AION_APPS_ROOT", "C:/code/python"))
 CODE_ROOT      = Path(os.getenv("AION_CODE_ROOT", "C:/code/python"))
 REGISTRY_FILE      = Path("apps.json")        # built-in apps (git-tracked)
 LOCAL_REGISTRY_FILE = Path("apps.local.json")  # personal apps (git-ignored)
