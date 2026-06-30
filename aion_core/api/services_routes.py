@@ -25,14 +25,14 @@ SERVICE_FORMS = {
         "title": "Statut Git des Repos", "icon": "\U0001f500", "action": "status",
         "fields": [
             {"id":"repos_root","label":"Repertoire racine","type":"text",
-             "ph":"C:/AION_APPS/repos","val":"C:/AION_APPS/repos"},
+             "ph":"C:/code/python","val":"C:/code/python"},
         ],
     },
     "env_checker": {
         "title": "Verification .env", "icon": "\U0001f50d", "action": "check",
         "fields": [
             {"id":"repos_root","label":"Repertoire racine","type":"text",
-             "ph":"C:/AION_APPS/repos","val":"C:/AION_APPS/repos"},
+             "ph":"C:/code/python","val":"C:/code/python"},
         ],
     },
     "ado_search": {

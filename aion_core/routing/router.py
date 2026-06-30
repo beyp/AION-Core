@@ -140,7 +140,7 @@ class AppRouter:
               image_mime: str = "image/jpeg") -> dict:
         """
         Route une requête vers la bonne app.
-        
+
         Returns:
             {
                 "app":      str,
@@ -437,7 +437,9 @@ class AppRouter:
             autostart    = cfg.get("autostart", {})
             install_path = store_cfg.get("install_path") or autostart.get("path", "")
             port         = int(autostart.get("port", 0))
-            env          = {"AION_DATA_DIR": f"C:/AION_APPS/appdata/{app_id}",
+            import os as _os_rt
+            aion_apps_root = _os_rt.getenv("AION_APPS_ROOT", "C:/AION_APPS")
+            env          = {"AION_DATA_DIR": f"{aion_apps_root}/appdata/{app_id}",
                             "AION_APP_ID": app_id}
             env.update(autostart.get("env", {}))
 

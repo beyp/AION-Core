@@ -182,6 +182,65 @@ class ProcessManager:
             ),
         }
 
+    # ── Registry integration ───────────────────────────────────────
+
+    @staticmethod
+    def read_app_config(app_id: str, registry_files: list[str] = None) -> dict | None:
+        """
+        Lit la config d une app depuis le registre (apps.json, apps.local.json).
+
+        Args:
+            app_id:         ID de l'app (ex: "quickmind")
+            registry_files: Fichiers de registre a chercher (par defaut: apps.json, apps.local.json)
+
+        Returns:
+            Config dict avec keys: name, type, path, port, url, health_endpoint, command, update_command, log_path, env
+            ou None si app non trouvee
+        """
+        if not registry_files:
+            registry_files = ["apps.local.json", "apps.json"]
+
+        for reg_file in registry_files:
+            reg_path = Path(reg_file)
+            if not reg_path.exists():
+                continue
+            try:
+                with open(reg_path, encoding="utf-8") as f:
+                    registry = json.load(f)
+                app_cfg = registry.get("apps", {}).get(app_id)
+                if app_cfg:
+                    return app_cfg
+            except Exception:
+                continue
+        return None
+
+    @staticmethod
+    def extract_launch_config(app_cfg: dict) -> dict:
+        """
+        Extrait les infos de lancement depuis une config d app.
+
+        Returns:
+            {
+                "port": int,
+                "command": list[str] ou None,
+                "health_endpoint": str,
+                "update_command": str,
+                "log_path": str,
+                "env": dict
+            }
+        """
+        autostart = app_cfg.get("autostart", {})
+        store = app_cfg.get("store", {})
+
+        return {
+            "port": int(autostart.get("port", 0) or app_cfg.get("port", 0) or 0),
+            "command": autostart.get("command") or None,
+            "health_endpoint": app_cfg.get("health_endpoint", "/health"),
+            "update_command": autostart.get("update_command") or app_cfg.get("update_command", "git pull"),
+            "log_path": app_cfg.get("log_path", "logs/app.log"),
+            "env": autostart.get("env", {}),
+        }
+
     # ── Start ─────────────────────────────────────────────────────
 
     def start(self, app_id: str, install_path: str,

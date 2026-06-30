@@ -56,6 +56,148 @@ class AppDiscovery:
     def get_app(self, app_id: str) -> dict | None:
         return self._reg.get("apps", {}).get(app_id)
 
+    def scan_local_code_root(self) -> list[dict]:
+        """
+        Scanne AION_CODE_ROOT pour decouvrir des apps candidates.
+        Cherche les dossiers contenant :
+          - aion_app.yaml (manifest prefer)
+          - main.py, app.py, run_api.py
+          - pyproject.toml, requirements.txt
+
+        Returns:
+            Liste de dicts : {"name", "app_id", "path", "has_manifest", "manifest", "indicators", "suggested_config"}
+            NOT auto-registered. Utilisateur doit valider via /api/store/...
+        """
+        code_root = os.getenv("AION_CODE_ROOT", "C:/code/python")
+        root = Path(code_root)
+
+        if not root.exists():
+            logger.warning("AION_CODE_ROOT introuvable: %s", code_root)
+            return []
+
+        candidates = []
+
+        try:
+            for item in sorted(root.iterdir()):
+                if not item.is_dir():
+                    continue
+                if item.name.startswith("."):
+                    continue
+
+                app_id = item.name.lower().replace("-", "_")
+
+                # Chercher manifest aion_app.yaml
+                manifest_file = item / "aion_app.yaml"
+                manifest = None
+                has_manifest = False
+
+                if manifest_file.exists():
+                    has_manifest = True
+                    try:
+                        import yaml
+                        with open(manifest_file, "r", encoding="utf-8") as f:
+                            manifest = yaml.safe_load(f)
+                    except Exception:
+                        try:
+                            # Fallback : parser basique
+                            content = manifest_file.read_text(encoding="utf-8")
+                            manifest = self._parse_yaml_simple(content)
+                        except Exception as e:
+                            logger.warning("Erreur lecture manifest %s: %s", manifest_file, e)
+                            manifest = {}
+
+                # Indicateurs de ce qui ressemble a une app
+                indicators = []
+                for fname in ["main.py", "app.py", "run_api.py", "server.py", "run.py"]:
+                    if (item / fname).exists():
+                        indicators.append(fname)
+
+                if (item / "pyproject.toml").exists():
+                    indicators.append("pyproject.toml")
+                if (item / "requirements.txt").exists():
+                    indicators.append("requirements.txt")
+                if (item / ".git").exists():
+                    indicators.append(".git")
+                if (item / "docker-compose.yml").exists() or (item / "docker-compose.yaml").exists():
+                    indicators.append("docker-compose")
+
+                # Skip si rien ne ressemble a une app
+                if not indicators and not has_manifest:
+                    continue
+
+                suggested_config = {}
+                if manifest and isinstance(manifest, dict):
+                    # Utiliser le manifest s il existe
+                    suggested_config = {
+                        "name": manifest.get("name", item.name),
+                        "type": manifest.get("type", "python"),
+                        "port": manifest.get("port", 0),
+                        "url": manifest.get("url", ""),
+                        "health_endpoint": manifest.get("health_endpoint", "/health"),
+                        "command": manifest.get("command", ""),
+                        "update_command": manifest.get("update_command", "git pull"),
+                        "log_path": manifest.get("log_path", "logs/app.log"),
+                        "path": manifest.get("path", item.name),
+                    }
+                else:
+                    # Auto-detect basique
+                    app_type = "python"
+                    port = 0
+                    url = ""
+
+                    if "docker-compose" in indicators:
+                        app_type = "docker"
+                    elif "run_api.py" in indicators or "main.py" in indicators:
+                        if "FastAPI" in (item / "run_api.py").read_text(encoding="utf-8", errors="replace") if (item / "run_api.py").exists() else "":
+                            app_type = "fastapi"
+                            port = 8000 + hash(item.name) % 1000
+
+                    suggested_config = {
+                        "name": item.name,
+                        "type": app_type,
+                        "port": port,
+                        "url": f"http://127.0.0.1:{port}" if port else "",
+                        "health_endpoint": "/health",
+                        "command": "",
+                        "update_command": "git pull" if ".git" in indicators else "",
+                        "log_path": "logs/app.log",
+                        "path": item.name,
+                    }
+
+                candidates.append({
+                    "name": item.name,
+                    "app_id": app_id,
+                    "path": str(item.relative_to(root)),
+                    "full_path": str(item),
+                    "has_manifest": has_manifest,
+                    "manifest": manifest or {},
+                    "indicators": indicators,
+                    "suggested_config": suggested_config,
+                })
+
+        except Exception as e:
+            logger.error("Erreur scan_local_code_root: %s", e)
+
+        logger.info("Decouverte: %d app(s) candidates dans %s", len(candidates), code_root)
+        return candidates
+
+    def _parse_yaml_simple(self, content: str) -> dict:
+        """Parseur YAML ultra-simple pour aion_app.yaml quand PyYAML n est pas dispo."""
+        result = {}
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if ":" in line and "http" not in line:
+                key, val = line.split(":", 1)
+                key = key.strip()
+                val = val.strip().strip("'\"")
+                try:
+                    result[key] = int(val) if val.isdigit() else val
+                except Exception:
+                    result[key] = val
+        return result
+
     def discover(self, source: str, app_id: str | None = None,
                  app_type: str = "auto") -> dict:
         """

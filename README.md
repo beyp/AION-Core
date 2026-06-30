@@ -1,6 +1,6 @@
 # AION-Core 🤖
 
-**AI-First Personal Orchestrator**  
+**AI-First Personal Orchestrator**
 *Un cerveau IA. Toutes tes apps. Voice, Web, API.*
 
 ---
@@ -33,17 +33,26 @@ C:/code/python/AION-Core/      ← repo principal
   ├── apps/        ← Connecteurs (QuickMind, ADO, System, Timer)
   ├── store/       ← AppStore (ProcessManager, BackupManager, ConfigEditor)
   ├── services/    ← Services intégrés (capacity_calc, git_status, ado_search...)
+  ├── discovery/   ← AppDiscovery (scan_local_code_root, manifest support)
   ├── tray.py      ← Icône systray Windows
   ├── updater.py   ← Auto-update AION-Core
   └── web/         ← Templates Jinja2 + statiques
 
-C:/AION_APPS/                  ← données AION (hors git)
-  appdata/[app]/               ← configs et DB sauvegardées
-  backups/[app]/               ← backups quotidiens horodatés
+C:/code/python/           ← AION_CODE_ROOT (repos utilisateur)
+  QuickMind/              ← app instance (run_api.py, port 8765)
+    └─ aion_app.yaml      ← manifest optionnel
+  ProjectMind/            ← app instance (main.py, port 8766)
+    └─ aion_app.yaml      ← manifest optionnel
 
-C:/code/python/[App]/          ← tes apps (repos existants)
-  startQuickMind.bat           ← script de lancement (généré par AION si absent)
+C:/AION_APPS/             ← AION_APPS_ROOT (données AION, hors git)
+  appdata/                ← configs et DB sauvegardées par app
+  backups/                ← backups quotidiens horodatés
+  logs/                   ← logs AION
 ```
+
+**Clés d'environnement**:
+- `AION_CODE_ROOT=C:/code/python` : racine des apps utilisateur
+- `AION_APPS_ROOT=C:/AION_APPS` : données internes AION
 
 ---
 

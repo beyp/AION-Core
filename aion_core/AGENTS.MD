@@ -71,8 +71,8 @@ Prefer long-lived feature branches for coherent development.
 ## Current testing gaps
 The current suite covers a subset of the system. Missing coverage includes:
 - App startup and lifecycle behavior in [aion_core/app.py](app.py)
-- Router dispatch decisions in [aion_core/routing/router.py](routing/router.py)
-- Discovery and launcher flows in [aion_core/discovery](discovery)
+- Router dispatch decisions in [aion_core/routing/router.py](routing/router.py) — partially covered (dispatch, but not all paths)
+- Discovery and launcher flows in [aion_core/discovery](discovery) — NEW: test_app_discovery.py covers scan_local_code_root, manifest parsing, path resolution
 - Backup and updater behavior in [aion_core/store](store) and [aion_core/updater.py](updater.py)
 - API route wiring in [aion_core/api](api)
 - Windows-specific tray behavior in [aion_core/tray.py](tray.py)

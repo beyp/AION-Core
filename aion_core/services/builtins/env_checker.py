@@ -27,7 +27,9 @@ class Service:
         return self._check(params)
 
     def _check(self, params):
-        root = Path(params.get("repos_root") or "C:/AION_APPS/repos")
+        import os
+        default_root = os.getenv("AION_CODE_ROOT", "C:/code/python")
+        root = Path(params.get("repos_root") or default_root)
         if not root.exists():
             return {"success": False, "message": f"Repertoire introuvable: {root}"}
 

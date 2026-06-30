@@ -20,13 +20,38 @@ AION-Core is a Windows-friendly personal orchestration app built around a Python
 - Web surface: [aion_core/web](../web)
 - Data and runtime state: [data](../../data)
 
+## App management architecture (v2.0)
+
+### Path organization
+- **AION_CODE_ROOT** (`C:/code/python` default): Location of user applications (QuickMind, ProjectMind, etc).
+- **AION_APPS_ROOT** (`C:/AION_APPS` default): Location of internal AION data (appdata, backups, logs).
+- All old references to `C:/AION_APPS/repos` have been updated to use AION_CODE_ROOT.
+
+### App registry system
+1. **apps.json**: Built-in app definitions (system apps, defaults).
+2. **apps.local.json**: User-installed apps (git-ignored, not committed).
+3. **aion_app.yaml** (optional): Per-app manifest at app root. If present, overrides registry config.
+
+### App discovery and launch
+- **AppDiscovery.scan_local_code_root()**: Scans AION_CODE_ROOT for candidate apps (looks for aion_app.yaml, main.py, app.py, pyproject.toml, requirements.txt).
+- **Returns** suggested configurations WITHOUT auto-registering.
+- **ProcessManager.read_app_config()**: Reads app config from registry (apps.local.json → apps.json → auto-detect).
+- **ProcessManager.extract_launch_config()**: Extracts launch details (port, command, health_endpoint, update_command, log_path, env) from registry or manifest.
+
+### Service defaults update
+- `env_checker.py`, `git_status.py`: Now use `AION_CODE_ROOT` via env var (with fallback).
+- `services_routes.py` UI: Defaults changed from `C:/AION_APPS/repos` to `C:/code/python`.
+- `store_routes.py`, `router.py`: Use `AION_APPS_ROOT` for appdata paths (not repos).
+
 ## Design principles
 - Keep the app modular so new connectors can be added without changing the central bootstrap.
 - Prefer environment-driven configuration over hard-coded values.
 - Keep Windows compatibility in mind for startup scripts, tray behavior, and PowerShell commands.
 - Preserve existing behavior and use tests to guard regressions.
+- App paths and locations are driven by environment variables, enabling flexible deployment.
 
 ## Data and configuration
 - Runtime state and local memory live under [data](../../data).
 - Shared environment settings are managed through `.env` and the shared config layer.
 - App registrations and local overrides are tracked in [apps.json](../../apps.json) and [apps.local.json](../../apps.local.json).
+- Per-app configuration can be provided via optional `aion_app.yaml` at the app root.

@@ -1,19 +1,11 @@
 {
   "_readme": "Copier en apps.local.json (git-ignored). Config de tes apps personnelles.",
-  "_standard": {
-    "note": "Toute app AION-Core doit respecter : entry point unique, /health endpoint, port via env var.",
-    "modes": {
-      "fastapi": "App web FastAPI/uvicorn — lancee par python run_api.py ou python main.py",
-      "script": "Script Python natif (Desktop/Tkinter) — AION lance la fenetre, pas d'iframe",
-      "docker": "Container Docker — AION fait docker compose up -d"
-    }
-  },
   "_important": {
-    "QuickMind_entry": "run_api.py — lance core.api_server:app (FastAPI headless, port 8765)",
-    "QuickMind_DB": "config.yaml -> database.path. Copier config.yaml dans appdata/ pour persister.",
-    "ProjectMind_entry": "main.py — FastAPI natif avec if __name__ block (port 8766)",
-    "ProjectMind_DB": "Variable DB_PATH dans .env -> C:/AION_APPS/appdata/projectmind/projectmind.db",
-    "shared_keys": "Déclarer les clés partagées avec AION-Core dans 'shared_keys'. Celles-ci peuvent être héritées depuis data/shared.env via le bouton Hériter dans Config."
+    "note": "Depuis AION-Core v2, les paths utilisent AION_CODE_ROOT (C:/code/python).",
+    "manifest": "Chaque app peut avoir aion_app.yaml a sa racine pour override ce fichier (RECOMMANDE).",
+    "appdata": "AION_APPS_ROOT (C:/AION_APPS) est reserve aux donnees AION : appdata, backups, logs.",
+    "QuickMind": "run_api.py — FastAPI headless sur port 8765",
+    "ProjectMind": "main.py — FastAPI natif sur port 8766"
   },
   "version": "1.0",
   "apps": {
@@ -23,7 +15,7 @@
       "type": "fastapi",
       "status": "installed",
       "connector": "aion_core/apps/quickmind/connector.py",
-      "url": "http://localhost:8765",
+      "url": "http://127.0.0.1:8765",
       "health_endpoint": "/health",
       "github": "beyp/QuickMind",
       "icon": "check",
@@ -31,11 +23,7 @@
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
-        "path": "C:\\code\\Python\\QuickMind",
-        "command": [
-          "C:\\Code\\Python\\QuickMind\\.venv\\Scripts\\python.exe",
-          "run_api.py"
-        ],
+        "path": "C:/code/python/QuickMind",
         "port": 8765,
         "startup_order": 1,
         "health_check": true,
@@ -45,8 +33,8 @@
         }
       },
       "store": {
-        "install_path": "C:\\Code\\Python\\QuickMind",
-        "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
+        "install_path": "C:/code/python/QuickMind",
+        "appdata_path": "C:/AION_APPS/appdata/quickmind",
         "appdata_files": [
           "data/quickmind.db",
           "data/attachments",
@@ -67,7 +55,7 @@
       "type": "fastapi",
       "status": "installed",
       "connector": null,
-      "url": "http://localhost:8766",
+      "url": "http://127.0.0.1:8766",
       "health_endpoint": "/health",
       "github": "beyp/ProjectMind",
       "icon": "clipboard",
@@ -75,25 +63,21 @@
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
-        "path": "C:\\Code\\Python\\ProjectMind",
-        "command": [
-          "C:\\Code\\Python\\ProjectMind\\.venv\\Scripts\\python.exe",
-          "main.py"
-        ],
+        "path": "C:/code/python/ProjectMind",
         "port": 8766,
         "startup_order": 2,
         "health_check": true,
         "env": {
           "PROJECTMIND_HOST": "0.0.0.0",
           "PROJECTMIND_PORT": "8766",
-          "DB_PATH": "C:\\AION_APPS\\appdata\\projectmind\\projectmind.db",
+          "DB_PATH": "C:/AION_APPS/appdata/projectmind/projectmind.db",
           "GROQ_API_KEY": "",
           "GROQ_MODEL": "llama-3.3-70b-versatile"
         }
       },
       "store": {
-        "install_path": "C:\\Code\\Python\\ProjectMind",
-        "appdata_path": "C:\\AION_APPS\\appdata\\projectmind",
+        "install_path": "C:/code/python/ProjectMind",
+        "appdata_path": "C:/AION_APPS/appdata/projectmind",
         "appdata_files": [
           "data/projectmind.db"
         ],
@@ -101,12 +85,7 @@
         "installed_at": "",
         "last_update": ""
       },
-      "shared_keys": [
-        "GROQ_API_KEY",
-        "GROQ_MODEL",
-        "ADO_PAT",
-        "ADO_ORG"
-      ]
+      "shared_keys": []
     }
   }
 }

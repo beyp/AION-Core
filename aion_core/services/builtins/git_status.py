@@ -8,7 +8,7 @@ from typing import Any
 
 class Service:
     name        = "git_status"
-    description = "Statut git (branch, modifs, retard) de tous les repos AION_APPS"
+    description = "Statut git (branch, modifs, retard) de tous les repos AION_CODE_ROOT"
     icon        = "\U0001f500"
     actions     = ["status"]
 
@@ -16,7 +16,9 @@ class Service:
         return self._status(params)
 
     def _status(self, params):
-        root = Path(params.get("repos_root") or "C:/AION_APPS/repos")
+        import os
+        default_root = os.getenv("AION_CODE_ROOT", "C:/code/python")
+        root = Path(params.get("repos_root") or default_root)
         if not root.exists():
             return {"success": False, "message": f"Repertoire introuvable: {root}"}
 
