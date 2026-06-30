@@ -118,22 +118,42 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
       <div id="inst-result" class="result-msg"></div>
     </div>
 
+
     <!-- Modal de detection -->
-    <!-- Modal de detection -->
-    <div id="detect-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);"><div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:16px;">
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;width:720px;max-width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;flex-shrink:0;">
-          <span style="font-size:1rem;flex:1;font-weight:600;">&#x1F50D; D&eacute;tection &mdash; <span id="dm-title" style="color:var(--accent);"></span></span>
-          <button onclick="closeDetect()" style="background:transparent;border:none;color:var(--dim);cursor:pointer;font-size:1.1rem;padding:4px 8px;">&#x2715;</button>
+    <div id="detect-modal"
+         style="display:none;position:fixed;inset:0;z-index:9999;
+                background:rgba(0,0,0,.75);
+                align-items:center;justify-content:center;">
+      <div style="background:var(--card);border:1px solid var(--border);
+                  border-radius:12px;width:680px;max-width:calc(100vw - 32px);
+                  max-height:calc(100vh - 80px);
+                  display:flex;flex-direction:column;overflow:hidden;
+                  box-shadow:0 20px 60px rgba(0,0,0,.5);">
+        <!-- Header -->
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);
+                    display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          <span style="font-size:1rem;font-weight:600;flex:1;">
+            &#x1F50D; D&eacute;tection &mdash; <span id="dm-title" style="color:var(--accent);"></span>
+          </span>
+          <button onclick="closeDetect()"
+                  style="background:rgba(255,255,255,.06);border:1px solid var(--border);
+                         color:var(--dim);cursor:pointer;font-size:.9rem;
+                         padding:4px 10px;border-radius:6px;">&#x2715;</button>
         </div>
-        <div id="dm-body" style="padding:16px 20px;overflow-y:auto;flex:1;min-height:0;"></div>
-        <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">
-          <button onclick="closeDetect()" class="btn btn-gray" style="padding:8px 16px;">Annuler</button>
-          <button onclick="confirmInstall()" class="btn btn-blue" style="padding:8px 20px;font-weight:600;">&#x2705; Confirmer et installer</button>
+        <!-- Body -->
+        <div id="dm-body"
+             style="padding:16px 18px;overflow-y:auto;flex:1;"></div>
+        <!-- Footer -->
+        <div style="padding:12px 18px;border-top:1px solid var(--border);
+                    display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;">
+          <button onclick="closeDetect()" class="btn btn-gray" style="padding:7px 16px;">Annuler</button>
+          <button onclick="confirmInstall()" class="btn btn-blue" style="padding:7px 20px;font-weight:600;">
+            &#x2705; Confirmer et installer
+          </button>
         </div>
-      </div></div>
+      </div>
     </div>
-    </div>
+
 
     <!-- Apps installées via htmx -->
     <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:10px;font-weight:600;">
