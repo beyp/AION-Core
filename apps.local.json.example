@@ -31,9 +31,9 @@
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
-        "path": "C:\\AION_APPS\\repos\\QuickMind",
+        "path": "C:\\code\\Python\\QuickMind",
         "command": [
-          "C:\\AION_APPS\\repos\\QuickMind\\.venv\\Scripts\\python.exe",
+          "C:\\Code\\Python\\QuickMind\\.venv\\Scripts\\python.exe",
           "run_api.py"
         ],
         "port": 8765,
@@ -45,7 +45,7 @@
         }
       },
       "store": {
-        "install_path": "C:\\AION_APPS\\repos\\QuickMind",
+        "install_path": "C:\\Code\\Python\\QuickMind",
         "appdata_path": "C:\\AION_APPS\\appdata\\quickmind",
         "appdata_files": [
           "data/quickmind.db",
@@ -75,9 +75,9 @@
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
-        "path": "C:\\AION_APPS\\repos\\ProjectMind",
+        "path": "C:\\Code\\Python\\ProjectMind",
         "command": [
-          "C:\\AION_APPS\\repos\\ProjectMind\\.venv\\Scripts\\python.exe",
+          "C:\\Code\\Python\\ProjectMind\\.venv\\Scripts\\python.exe",
           "main.py"
         ],
         "port": 8766,
@@ -92,7 +92,7 @@
         }
       },
       "store": {
-        "install_path": "C:\\AION_APPS\\repos\\ProjectMind",
+        "install_path": "C:\\Code\\Python\\ProjectMind",
         "appdata_path": "C:\\AION_APPS\\appdata\\projectmind",
         "appdata_files": [
           "data/projectmind.db"

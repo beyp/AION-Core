@@ -22,10 +22,7 @@ def test_brain_no_key():
 def test_parse_json_valid():
     from aion_core.ai.brain import AionBrain
     brain = AionBrain()
-    resp = '{"action": "test", "params": {}}\`\``json
-{"action": "test"}
-\`\`\`'
-    # Test avec bloc ```json
+
     raw = '```json\n{"app": "quickmind"}\n```'
     result = brain.parse_json_response(raw)
     assert result == {"app": "quickmind"}
