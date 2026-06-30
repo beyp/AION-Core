@@ -1,91 +1,89 @@
 {
-  "_readme": "Copier en apps.local.json (git-ignored). Config de tes apps personnelles.",
-  "_important": {
-    "note": "Depuis AION-Core v2, les paths utilisent AION_CODE_ROOT (C:/code/python).",
-    "manifest": "Chaque app peut avoir aion_app.yaml a sa racine pour override ce fichier (RECOMMANDE).",
-    "appdata": "AION_APPS_ROOT (C:/AION_APPS) est reserve aux donnees AION : appdata, backups, logs.",
-    "QuickMind": "run_api.py — FastAPI headless sur port 8765",
-    "ProjectMind": "main.py — FastAPI natif sur port 8766"
-  },
   "version": "1.0",
   "apps": {
     "quickmind": {
       "name": "QuickMind",
-      "description": "Gestionnaire de taches — API FastAPI headless (run_api.py)",
       "type": "fastapi",
       "status": "installed",
-      "connector": "aion_core/apps/quickmind/connector.py",
-      "url": "http://127.0.0.1:8765",
-      "health_endpoint": "/health",
       "github": "beyp/QuickMind",
+      "url": "http://localhost:8765",
+      "health_endpoint": "/health",
       "icon": "check",
-      "version": "1.0",
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
         "path": "C:/code/python/QuickMind",
+        "command": [
+          "powershell",
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "Set-Location 'C:/code/python/QuickMind'; ./.venv/Scripts/Activate.ps1; python run_api.py"
+        ],
         "port": 8765,
         "startup_order": 1,
-        "health_check": true,
+        "health_check": false,
         "env": {
           "QUICKMIND_HOST": "0.0.0.0",
-          "QUICKMIND_PORT": "8765"
+          "QUICKMIND_PORT": "8765",
+          "AION_DATA_DIR": "C:/code/python/QuickMind",
+          "AION_APP_ID": "quickmind"
         }
       },
       "store": {
         "install_path": "C:/code/python/QuickMind",
-        "appdata_path": "C:/AION_APPS/appdata/quickmind",
+        "appdata_path": "C:/code/python/QuickMind",
         "appdata_files": [
           "data/quickmind.db",
-          "data/attachments",
+          ".env",
           "config.yaml"
         ],
         "github": "beyp/QuickMind",
-        "installed_at": "",
-        "last_update": ""
-      },
-      "shared_keys": [
-        "GROQ_API_KEY",
-        "GROQ_MODEL"
-      ]
+        "installed_at": "2026-07-01",
+        "last_update": "2026-07-01"
+      }
     },
     "projectmind": {
       "name": "ProjectMind",
-      "description": "Gestion de projets Gantt/capacity — FastAPI natif (main.py)",
       "type": "fastapi",
       "status": "installed",
-      "connector": null,
-      "url": "http://127.0.0.1:8766",
-      "health_endpoint": "/health",
       "github": "beyp/ProjectMind",
+      "url": "http://localhost:8766",
+      "health_endpoint": "/api/projects",
       "icon": "clipboard",
-      "version": "1.0",
       "autostart": {
         "enabled": true,
         "mode": "fastapi",
         "path": "C:/code/python/ProjectMind",
+        "command": [
+          "powershell",
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-Command",
+          "Set-Location 'C:/code/python/ProjectMind'; ./.venv/Scripts/Activate.ps1; python main.py"
+        ],
         "port": 8766,
         "startup_order": 2,
-        "health_check": true,
+        "health_check": false,
         "env": {
-          "PROJECTMIND_HOST": "0.0.0.0",
-          "PROJECTMIND_PORT": "8766",
-          "DB_PATH": "C:/AION_APPS/appdata/projectmind/projectmind.db",
-          "GROQ_API_KEY": "",
-          "GROQ_MODEL": "llama-3.3-70b-versatile"
+          "AION_DATA_DIR": "C:/code/python/ProjectMind",
+          "AION_APP_ID": "projectmind",
+          "DB_PATH": "C:/code/python/ProjectMind/data/projectmind.db"
         }
       },
       "store": {
         "install_path": "C:/code/python/ProjectMind",
-        "appdata_path": "C:/AION_APPS/appdata/projectmind",
+        "appdata_path": "C:/code/python/ProjectMind",
         "appdata_files": [
-          "data/projectmind.db"
+          "data/projectmind.db",
+          ".env"
         ],
         "github": "beyp/ProjectMind",
-        "installed_at": "",
-        "last_update": ""
-      },
-      "shared_keys": []
+        "installed_at": "2026-07-01",
+        "last_update": "2026-07-01"
+      }
     }
   }
 }
