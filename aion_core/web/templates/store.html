@@ -515,11 +515,8 @@ function doBackup(appId) {
   .then(function(r) { return r.json(); })
   .then(function(d) {
     if (d.already_existed && !d.success) {
-      // Demander confirmation pour écraser
-      if (confirm('Un backup existe déjà pour aujourd'hui.
-' + d.message + '
-
-Écraser ?')) {
+      var confirmMsg = 'Un backup existe deja.\n' + d.message + '\n\nEcraser ?';
+      if (confirm(confirmMsg)) {
         fetch('/api/store/backup/' + appId, {
           method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({force: true})
@@ -529,11 +526,14 @@ function doBackup(appId) {
           showMsg(res, d2.success ? 'green' : 'red', d2.message);
         });
       } else {
-        showMsg(res, 'orange', 'Backup annulé.');
+        showMsg(res, 'orange', 'Backup annule.');
       }
     } else {
       showMsg(res, d.success ? 'green' : 'red', d.message);
     }
+  })
+  .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
+}
   })
   .catch(function(e) { showMsg(res, 'red', 'Erreur: ' + e); });
 }
